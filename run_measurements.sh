@@ -4,7 +4,7 @@ echo "starting measurement process..."
 date
 
 # get vantage point info
-vp=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname | cut -d . -f2)
+##vp=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname | cut -d . -f2)
 # increase UDP receive buffer size
 sudo sysctl -w net.core.rmem_max=25000000
 # stop systemd-resolved and edit resolv.conf
@@ -49,7 +49,7 @@ while read upstream; do
 		sleep 1
 		echo "starting measurements"
 		cd /home/ubuntu/web-performance
-		python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
+		python3 run_measurements.py $p $upstream $dnsproxyPID chrome## $vp
 
 		sleep 1
 		echo "killing dnsproxy"
