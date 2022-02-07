@@ -49,7 +49,7 @@ while read upstream; do
 		sleep 1
 		echo "starting measurements"
 		cd /home/ubuntu/web-performance
-		python3 run_measurements.py $p $upstream $dnsproxyPID chrome## $vp
+		python3 run_measurements.py $p $upstream $dnsproxyPID chrome # $vp
 
 		sleep 1
 		echo "killing dnsproxy"

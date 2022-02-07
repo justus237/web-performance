@@ -103,6 +103,7 @@ def get_page_performance_metrics(driver, page):
         driver.get(f'https://{page}')
         return driver.execute_script(script)
     except selenium.common.exceptions.WebDriverException as e:
+        print(e)
         return {'error': str(e)}
 
 
