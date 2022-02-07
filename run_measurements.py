@@ -203,6 +203,7 @@ def insert_performance(page, performance, timestamp, cache_warming=0, error=''):
     sha.update(sha_input.encode())
     uid = uuid.UUID(sha.hexdigest())
     performance['id'] = str(uid)
+    print(str(uid))
 
     # insert into database
     cursor.execute(f"""
