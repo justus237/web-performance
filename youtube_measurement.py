@@ -123,13 +123,10 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", v
         var video = document.getElementsByTagName("video")[0];
         return video.ended
     """
-    script_get_video_buffered = """
-        var video = document.getElementsByTagName("video")[0];
-        var bufferedTime = video.buffered.end(0) - video.buffered.start(0);
-        return bufferedTime;
-    """
+    
+    script_get_video_buffered_wrong = 'video = document.getElementsByTagName("video")[0]; return video.buffered.end(0) - video.buffered.start(0);'
     #https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
-    script_get_video_buffered_alt = """
+    script_get_video_buffered = """
         var video = document.getElementsByTagName("video")[0];
         var currentTime = video.currentTime;
 		var buffLen = video.buffered.length;
@@ -137,6 +134,7 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", v
 		var bufferedTime = availablePlaybackTime - currentTime;
         return bufferedTime;
     """
+    
 
     nerdstatslog = []
     try:
@@ -164,11 +162,14 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", v
             #driver.switch_to.default_content()
             #html5video = driver.find_element(By.TAG_NAME, "video")
             #print(driver.find_element_by_tag_name("video").get_attribute("src"))
+            skip_timer_so_that_getting_video_buffer_doesnt_crash = 2
             while True:
                 print('fetching nerdstats')
                 nerdstatslog.append(driver.execute_script(script_get_nerdstats))
-                #print(driver.execute_script(script_get_video_buffered))
-                #print(driver.execute_script(script_get_video_buffered_alt))
+                if skip_timer_so_that_getting_video_buffer_doesnt_crash > 0:
+                    skip_timer_so_that_getting_video_buffer_doesnt_crash = skip_timer_so_that_getting_video_buffer_doesnt_crash - 1
+                else:
+                    print(driver.execute_script(script_get_video_buffered))
                 if driver.execute_script(script_get_video_ended):
                     print(nerdstatslog)
                     return None

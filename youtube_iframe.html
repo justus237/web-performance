@@ -224,13 +224,18 @@
         }
 
         function logBuffer() {
-            eventLog.push({"event_type":"BufferLogging", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "currPlayTime": player.getCurrentTime()})
+            console.log(getBufferSecondsApprox());
+            eventLog.push({"event_type":"BufferLogging", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "currPlayTime": player.getCurrentTime()});
         }
 
         function getVideoDuration() {
             return player.getDuration()
         }
 
+        function getBufferSecondsApprox() {
+            //https://stackoverflow.com/a/58068828
+            return player.getVideoLoadedFraction()*player.getDuration()-player.getCurrentTime()
+        }
 
         function getEventLog() {
             return eventLog;
