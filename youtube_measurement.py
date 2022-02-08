@@ -4,12 +4,17 @@ import time
 import selenium.common.exceptions
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as chromeOptions
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import sys
 import sqlite3
 from datetime import datetime
 import hashlib
 import uuid
 import os
+##from seleniumwire import webdriver -> enabled looking at requests and could aid in figuring out buffer size in bytes instead of time
 
 dnsproxy_dir = "/home/ubuntu/dnsproxy/"
 
@@ -57,6 +62,11 @@ chrome_options = chromeOptions()
 chrome_options.add_argument('--no-sandbox')
 #chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-dev-shm-usage')
+#chrome_options.add_argument('--media-cache-size=2147483647') -> does not affect how much youtube pre-buffers
+chrome_options.add_argument('--disable-web-security')
+chrome_options.add_argument('--allow-file-access-from-files')
+#avoid having to start the video muted due to chrome autoplay policies
+chrome_options.add_argument('--autoplay-policy=no-user-gesture-required') 
 
 
 
@@ -101,40 +111,83 @@ def get_page_performance_metrics(driver, page):
     except selenium.common.exceptions.WebDriverException as e:
         return {'error': str(e)}
 
-def load_youtube(driver):
-    script = """
-            // Get performance and paint entries
-            var perfEntries = performance.getEntriesByType("navigation");
-            var paintEntries = performance.getEntriesByType("paint");
-    
-            var entry = perfEntries[0];
-            var fpEntry = paintEntries[0];
-            var fcpEntry = paintEntries[1];
-    
-            // Get the JSON and first paint + first contentful paint
-            var resultJson = entry.toJSON();
-            resultJson.firstPaint = 0;
-            resultJson.firstContentfulPaint = 0;
-            try {
-                for (var i=0; i<paintEntries.length; i++) {
-                    var pJson = paintEntries[i].toJSON();
-                    if (pJson.name == 'first-paint') {
-                        resultJson.firstPaint = pJson.startTime;
-                    } else if (pJson.name == 'first-contentful-paint') {
-                        resultJson.firstContentfulPaint = pJson.startTime;
-                    }
-                }
-            } catch(e) {}
-            
-            return resultJson;
-            """
+def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", video_id="YE7VzlLtp-4", start_seconds=0):
+    script_get_nerdstats = """
+        var currentTime = new Date().getTime();
+        var iframe_player = document.getElementById("movie_player")
+        return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
+        """
+
+    script_get_video_duration = 'return getVideoDuration()'#'video = document.getElementsByTagName("video")[0]; return video.duration;'
+    script_get_video_ended = """
+        var video = document.getElementsByTagName("video")[0];
+        return video.ended
+    """
+    script_get_video_buffered = """
+        var video = document.getElementsByTagName("video")[0];
+        var bufferedTime = video.buffered.end(0) - video.buffered.start(0);
+        return bufferedTime;
+    """
+    #https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
+    script_get_video_buffered_alt = """
+        var video = document.getElementsByTagName("video")[0];
+        var currentTime = video.currentTime;
+		var buffLen = video.buffered.length;
+		var availablePlaybackTime = video.buffered.end(buffLen-1);
+		var bufferedTime = availablePlaybackTime - currentTime;
+        return bufferedTime;
+    """
+
+    nerdstatslog = []
     try:
         #driver.set_page_load_timeout(30)
         #driver.get(f'https://{page}')
-        driver.get("file:///Users/justus/web-performance/youtube_iframe.html")
+        #driver.get("file:///Users/justus/web-performance/youtube_iframe.html")
+        driver.get("http://localhost:22222/youtube_iframe.html")
+        while driver.execute_script('return document.readyState') != 'complete':
+            time.sleep(1)
+
+
+        try:
+            wait = WebDriverWait(driver, 10000)
+            youtube_player_iframe = wait.until(EC.visibility_of_element_located((By.ID, 'player')))
+            driver.execute_script(f'setPlayerSize({fwidth},{fheight});')
+            driver.execute_script(f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");')
+            time.sleep(1)
+            video_duration_sec = driver.execute_script(script_get_video_duration)
+            print(video_duration_sec)
+            driver.execute_script('startVideoAndLog()')
+            #youtube_player_iframe = driver.find_element_by_id('player')
+            print('switching to yt iframe')
+            driver.switch_to.frame(youtube_player_iframe)
+            #driver.switch_to.frame('player')
+            #driver.switch_to.default_content()
+            #html5video = driver.find_element(By.TAG_NAME, "video")
+            #print(driver.find_element_by_tag_name("video").get_attribute("src"))
+            while True:
+                print('fetching nerdstats')
+                nerdstatslog.append(driver.execute_script(script_get_nerdstats))
+                #print(driver.execute_script(script_get_video_buffered))
+                #print(driver.execute_script(script_get_video_buffered_alt))
+                if driver.execute_script(script_get_video_ended):
+                    print(nerdstatslog)
+                    return None
+                time.sleep(1)
+        except selenium.common.exceptions.WebDriverException as e:
+            #driver.quit()
+            print('failed inner try')
+            print(str(e))
+            return {'error': str(e)}
+
+        
+        #driver.find
+        #driver.execute_cdp_cmd('player = document.getElementsByTagName("video")[0];')
         #return driver.execute_script(script)
         return None
     except selenium.common.exceptions.WebDriverException as e:
+        #driver.quit()
+        print('failed outer try')
+        print(str(e))
         return {'error': str(e)}
 
 def perform_page_load(page, cache_warming=0):
@@ -144,6 +197,13 @@ def perform_page_load(page, cache_warming=0):
     timestamp = datetime.now()
     #performance_metrics = get_page_performance_metrics(driver, page)
     performance_metrics = load_youtube(driver)
+    #print(performance_metrics)
+    driver.switch_to.default_content()
+    print('switched out of iframe')
+    print(driver.execute_script("return getEventLog();"))
+    driver.quit()
+    #driver.execute_script('return window.eventLog')
+
     #driver.quit()
     ## insert page into database
     #if 'error' not in performance_metrics:

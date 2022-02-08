@@ -1,50 +1,242 @@
 <!DOCTYPE html>
 <html>
-  <body>
+
+<body>
     <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
     <div id="player"></div>
 
+
     <script>
-      // 2. This code loads the IFrame Player API code asynchronously.
-      var tag = document.createElement('script');
+        // 2. This code loads the IFrame Player API code asynchronously.
+        var tag = document.createElement('script');
 
-      tag.src = "https://www.youtube.com/iframe_api";
-      var firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-      // 3. This function creates an <iframe> (and YouTube player)
-      //    after the API code downloads.
-      var player;
-      function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', {
-          height: '360',
-          width: '640',
-          videoId: 'aqz-KE-bpKQ',
-          events: {
-            'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
-          }
-        });
-      }
+        var playerIsReady = false;
+        var isLogging = false;
+        var currentQuality = 'unknown';
+        var loggingIntervalID = -1;
+        var eventLog = [];
 
-      // 4. The API will call this function when the video player is ready.
-      function onPlayerReady(event) {
-        event.target.playVideo();
-      }
 
-      // 5. The API calls this function when the player's state changes.
-      //    The function indicates that when playing a video (state=1),
-      //    the player should play for six seconds and then stop.
-      var done = false;
-      function onPlayerStateChange(event) {
-        if (event.data == YT.PlayerState.PLAYING && !done) {
-          setTimeout(stopVideo, 6000);
-          done = true;
+        // 3. This function creates an <iframe> (and YouTube player)
+        //    after the API code downloads.
+        var player;
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '360',
+                width: '640',
+                videoId: 'aqz-KE-bpKQ',
+                //set mute to 1 when testing in a browser that doesn't have chrome's auto play policy disabled
+                playerVars: { 'mute': 0},
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onPlaybackQualityChange': onPlayerQualityChange,
+                    'onError': onPlayerError
+                }
+            });
         }
-      }
-      function stopVideo() {
-        player.stopVideo();
-      }
+
+        // 4. The API will call this function when the video player is ready.
+        function onPlayerReady(event) {
+            //event.target.playVideo();
+            console.log('Player ready.');
+            playerIsReady = true;
+            currentQuality = event.target.getPlaybackQuality();
+            console.log(currentQuality);
+            /*
+                Chrome prevents cross site stuff even for files,
+                disabling file on file access and other
+                security checks does not seem to work
+            */
+            //var embedCode = event.target.getVideoEmbedCode();
+            /*var iframe = document.getElementById('player');
+            var innerDoc = iframe.contentDocument || iframe.contentWindow.document;
+            var innerHTHMLPlayer = innerDoc.getElementsByTagName("video")[0];
+            console.log(innerHTHMLPlayer);*/
+            //event.target.playVideo()
+            //startVideoAndLog();
+        }
+
+
+        //https://stackoverflow.com/questions/13330565/youtube-api-getavailablequalitylevels-return-an-empty-array
+        //can only get available qualities when playing
+        /*
+            While playbackqualities arent retrievable until the player is playing,
+            what seems to be happening when telling it to start that it starts,
+            stops and then cues to presumably time 0; this means that the first
+            cue event with the available playback qualities array filled is probably
+            the actual playback start
+        */
+        function onPlayerStateChange(event) {
+            currentTime = new Date().getTime();
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    console.log("started playback")
+                    if (isLogging) {
+                        eventLog.push({"event_type":"PlayerStatePLAYING", "time": currentTime, "availableQualities":player.getAvailableQualityLevels(), "currentQuality": player.getPlaybackQuality()})
+                    }
+                case YT.PlayerState.ENDED:
+                    console.log("ended playback, stopping logging")
+                    if (isLogging) {
+                        eventLog.push({"event_type":"PlayerStateENDED", "time": currentTime})
+                        clearInterval(loggingIntervalID)
+                    }
+                case YT.PlayerState.PAUSED:
+                    console.log("paused playback")
+                    if (isLogging) {
+                        eventLog.push({"event_type":"PlayerStatePAUSED", "time": currentTime})
+                    }
+                case YT.PlayerState.BUFFERING:
+                    console.log("buffering")
+                    if (isLogging) {
+                        eventLog.push({"event_type":"PlayerStateBUFFERING", "time": currentTime})
+                        logBuffer()
+                    }
+                case YT.PlayerState.CUED:
+                    console.log("cued")
+                    console.log(event)
+                    if (isLogging) {
+                        eventLog.push({"event_type":"PlayerStateCUED", "time": currentTime, "availableQualities":player.getAvailableQualityLevels(), "currentQuality": player.getPlaybackQuality()})
+                    }
+                    
+            }
+        }
+        function onPlayerQualityChange(event) {
+            currentTime = new Date().getTime();
+            currentQuality = event.data;
+            switch (event.data) {
+                case 'auto':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to auto');
+                        eventLog.push({"event_type":"QualityChangeAuto", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'tiny':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to tiny');
+                        eventLog.push({"event_type":"QualityChangeTiny", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'small':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to small');
+                        eventLog.push({"event_type":"QualityChangeSmall", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'medium':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to medium');
+                        eventLog.push({"event_type":"QualityChangeMedium", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'large':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to large');
+                        eventLog.push({"event_type":"QualityChangeLarge", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'hd720':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to hd720');
+                        eventLog.push({"event_type":"QualityChange720", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'hd1080':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to hd1080');
+                        eventLog.push({"event_type":"QualityChange1080", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'highres':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to highres');
+                        eventLog.push({"event_type":"QualityChangeHighRes", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'hd1440':
+                    
+                    if (isLogging) {
+                        console.log('quality changed to hd1440');
+                        eventLog.push({"event_type":"QualityChange1440", "time": currentTime, "currentQuality":currentQuality})
+                    }
+                case 'hd2160':
+                    if (isLogging) {
+                        console.log('quality changed to hd2160');
+                        eventLog.push({"event_type":"QualityChange2160", "time": currentTime, "currentQuality":currentQuality})
+                    }
+
+            }
+        }
+        function onPlayerError(event) {
+            console.log("error "+event.data)
+        }
+        function stopVideo() {
+            player.stopVideo();
+        }
+        function startVideoAndLog() {
+            var currentTime = new Date().getTime();
+            if (playerIsReady) {
+                player.playVideo();
+                isLogging = true;
+                videoDur = player.getDuration()
+                eventLog.push({"event_type":"PlayStartedFromFunction", "time": currentTime, "video_dur": videoDur})
+                loggingIntervalID = setInterval(logBuffer, 1000)
+                return true
+            }
+            return false
+        }
+
+        function unMutePlayer() {
+            player.unMute()
+        }
+
+        function getEventLog() {
+            return eventLog;
+        }
+
+        function getPlayerQualities() {
+            return player.getAvailableQualityLevels()
+        }
+
+        function setPlayerSize(width, height) {
+            player.setSize(width, height)
+        }
+
+        function setVideoAndPlayAndLog(videoId, startSeconds, suggestedQuality) {
+            var currentTime = new Date().getTime();
+            player.loadVideoById(videoId, startSeconds, suggestedQuality)
+            isLogging = true;
+            videoDur = player.getDuration()
+            eventLog.push({"event_type":"LoadVideoAndPlayStartedFromFunction", "time": currentTime, "video_dur": videoDur})
+            loggingIntervalID = setInterval(logBuffer, 1000)
+        }
+
+        function setVideo(videoId, startSeconds, suggestedQuality) {
+            player.cueVideoById(videoId, startSeconds, suggestedQuality)
+        }
+
+        function setPlayerQuality(suggestedQuality) {
+            player.setPlaybackQuality(suggestedQuality)
+        }
+
+        function logBuffer() {
+            eventLog.push({"event_type":"BufferLogging", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "currPlayTime": player.getCurrentTime()})
+        }
+
+        function getVideoDuration() {
+            return player.getDuration()
+        }
+
+
+        function getEventLog() {
+            return eventLog;
+        }
+
     </script>
-  </body>
+</body>
+
 </html>
