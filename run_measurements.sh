@@ -45,8 +45,7 @@ while read upstream; do
 		./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.100" >& /home/ubuntu/web-performance/dnsproxy.log &
 		dnsproxyPID=$!
 
-		echo $dnsproxyPID
-		ps aux | grep dnsproxy
+
 		# measurements
 		sleep 1
 		echo "starting measurements"
