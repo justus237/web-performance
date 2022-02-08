@@ -10,7 +10,7 @@ sudo sysctl -w net.core.rmem_max=25000000
 # stop systemd-resolved and edit resolv.conf
 sudo systemctl stop systemd-resolved
 sudo systemctl disable systemd-resolved
-echo "nameserver 127.0.0.2" | sudo tee /etc/resolv.conf
+echo "nameserver 127.0.0.100" | sudo tee /etc/resolv.conf
 # disable ipv6
 sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
@@ -42,9 +42,11 @@ while read upstream; do
 
 		sleep 1
 		echo "starting dnsproxy"
-		./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.2" >& /home/ubuntu/web-performance/dnsproxy.log &
+		./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.100" >& /home/ubuntu/web-performance/dnsproxy.log &
 		dnsproxyPID=$!
 
+		echo $dnsproxyPID
+		ps aux | grep dnsproxy
 		# measurements
 		sleep 1
 		echo "starting measurements"
