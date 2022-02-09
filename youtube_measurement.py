@@ -168,8 +168,6 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", s
     nerdstats_log = []
     try:
         driver.set_page_load_timeout(30)
-        # driver.get(f'https://{page}')
-        # driver.get("file:///Users/justus/web-performance/youtube_iframe.html")
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script('return document.readyState') != 'complete':
             time.sleep(1)
@@ -253,6 +251,7 @@ def perform_page_load(page, cache_warming=0):
         for event in parse_nerd_stats(nerd_stats):
             insert_performance(page, event, timestamp,
                                cache_warming=cache_warming)
+        #add missing keys in their correct format (most basic types, other sqlite types are derived from this anyway)
         for event in event_log:
             for key in iframe_api_elements.keys():
                 if key not in event.keys():
@@ -318,7 +317,7 @@ def create_measurements_table():
             domain string,
             vantagePoint string,
             timestamp datetime,
-            time integer,
+            time datetime,
             event_type string,
             buffer_perc real,
             curr_play_time real,
