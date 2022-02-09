@@ -14,60 +14,66 @@ from datetime import datetime
 import hashlib
 import uuid
 import os
-##from seleniumwire import webdriver -> enabled looking at requests and could aid in figuring out buffer size in bytes instead of time
+# from seleniumwire import webdriver -> enabled looking at requests and could aid in figuring out buffer size in bytes instead of time
 
 dnsproxy_dir = "/home/ubuntu/dnsproxy/"
 
 
-pages = ["https://www.youtube.com/watch?v=aqz-KE-bpKQ"]
+pages = ["aqz-KE-bpKQ"]
 
 
 # performance elements to extract
 measurement_elements = (
-    'id', 'protocol', 'server', 'domain', 'vantagePoint', 'timestamp', 'connectEnd', 'connectStart', 'domComplete',
-    'domContentLoadedEventEnd', 'domContentLoadedEventStart', 'domInteractive', 'domainLookupEnd', 'domainLookupStart',
-    'duration', 'encodedBodySize', 'decodedBodySize', 'transferSize', 'fetchStart', 'loadEventEnd', 'loadEventStart',
-    'requestStart', 'responseEnd', 'responseStart', 'secureConnectionStart', 'startTime', 'firstPaint',
-    'firstContentfulPaint', 'nextHopProtocol', 'cacheWarming', 'error')
+    'id', 'protocol', 'server', 'domain', 'vantagePoint', 'timestamp', 'time',
+    'event_type', 'buffer_perc', 'curr_play_time', 'video_dur', 'current_quality', 'available_qualities',
+    'bandwidth_kbps', 'buffer_health_seconds', 'codecs', 'dims_and_frames', 'resolution', 'network_activity_bytes',
+    'cacheWarming', 'error')
+
+
+iframe_api_elements = {'event_type': 'string', 'buffer_perc': 'float', 'curr_play_time': 'float',
+                       'video_dur': 'float', 'current_quality': 'string', 'available_qualities': 'string'}
+nerd_stats_elements = {'bandwidth_kbps': 'string', 'buffer_health_seconds': 'string', 'codecs': 'string',
+                       'dims_and_frames': 'string', 'resolution': 'string', 'network_activity_bytes': 'string'}
 
 # create db
-#db = sqlite3.connect('web-performance.db')
-#cursor = db.cursor()
-'''
+db = sqlite3.connect('web-performance.db')
+cursor = db.cursor()
+
 # retrieve input params
 try:
     protocol = sys.argv[1]
     server = sys.argv[2]
     proxyPID = int(sys.argv[3])
-except IndexError:
-    print("Input params incomplete (protocol, server, dnsproxyPID) - set dnsproxyPID to 0 if you don't use dnsproxy")
-    sys.exit(1)
-
-if len(sys.argv) > 4:
     browser = sys.argv[4]
-else:
-    browser = 'firefox'
-
-if len(sys.argv) > 5:
     vp_dict = {'compute-1': 'US East', 'ap-northeast-3': 'Asia Pacific Northeast', 'af-south-1': 'Africa South',
                'eu-central-1': 'Europe Central', 'ap-southeast-2': 'Asia Pacific Southeast', 'us-west-1': 'US West',
                'sa-east-1': 'South America East'}
     vantage_point = vp_dict.get(sys.argv[5], '')
-else:
-    vantage_point = ''
-'''
+    width = int(sys.argv[6])
+    height = int(sys.argv[7])
+    suggested_quality = sys.argv[8]
+    start_seconds = int(sys.argv[9])
+    play_duration_seconds = int(sys.argv[10])
+    pages = sys.argv[11:]
+    print(pages)
+except IndexError:
+    print("Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point, \niframe width, iframe height, \nsuggested video quality (e.g. \"default\"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play")
+    sys.exit(1)
+
+# fwidth=640, fheight=360, suggested_quality="default", start_seconds=0, play_duration_seconds=0, video_id="YE7VzlLtp-4"
+
+
 browser = 'chrome'
 # Chrome options
 chrome_options = chromeOptions()
 chrome_options.add_argument('--no-sandbox')
-#chrome_options.add_argument('--headless')
+# chrome_options.add_argument('--headless')
 chrome_options.add_argument('--disable-dev-shm-usage')
-#chrome_options.add_argument('--media-cache-size=2147483647') -> does not affect how much youtube pre-buffers
+# chrome_options.add_argument('--media-cache-size=2147483647') -> does not affect how much youtube pre-buffers
 chrome_options.add_argument('--disable-web-security')
 chrome_options.add_argument('--allow-file-access-from-files')
-#avoid having to start the video muted due to chrome autoplay policies
-chrome_options.add_argument('--autoplay-policy=no-user-gesture-required') 
-
+# avoid having to start the video muted due to chrome autoplay policies
+chrome_options.add_argument('--autoplay-policy=no-user-gesture-required')
 
 
 def create_driver():
@@ -111,21 +117,45 @@ def get_page_performance_metrics(driver, page):
     except selenium.common.exceptions.WebDriverException as e:
         return {'error': str(e)}
 
-def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", video_id="YE7VzlLtp-4", start_seconds=0):
+
+class video_element_has_duration_attribute(object):
+    """An expectation for checking that a video element has a duration that is not NaN.
+
+    locator - used to find the element
+    returns the WebElement once it has the particular css class
+    """
+
+    def __call__(self, driver):
+        # Finding the referenced element
+        try:
+            element = driver.find_element(By.TAG_NAME, 'video')
+            if element.get_attribute("duration") != "NaN":
+                return element.get_attribute("duration")
+            else:
+                return False
+        except Exception as e:
+            return False
+
+
+def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", start_seconds=0,
+                 play_duration_seconds=0, video_id="YE7VzlLtp-4"):
+    # https://stackoverflow.com/a/58068828
     script_get_nerdstats = """
         var currentTime = new Date().getTime();
         var iframe_player = document.getElementById("movie_player")
         return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
         """
+    script_get_nerdstats_buffer = 'return document.getElementById("movie_player").getStatsForNerds().buffer_health_seconds;'
 
-    script_get_video_duration = 'return getVideoDuration()'#'video = document.getElementsByTagName("video")[0]; return video.duration;'
+    # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
+    script_get_video_duration = 'return getVideoDuration()'
     script_get_video_ended = """
         var video = document.getElementsByTagName("video")[0];
         return video.ended
     """
-    
+
     script_get_video_buffered_wrong = 'video = document.getElementsByTagName("video")[0]; return video.buffered.end(0) - video.buffered.start(0);'
-    #https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
+    # https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
     script_get_video_buffered = """
         var video = document.getElementsByTagName("video")[0];
         var currentTime = video.currentTime;
@@ -134,88 +164,149 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", v
 		var bufferedTime = availablePlaybackTime - currentTime;
         return bufferedTime;
     """
-    
 
-    nerdstatslog = []
+    nerdstats_log = []
     try:
-        #driver.set_page_load_timeout(30)
-        #driver.get(f'https://{page}')
-        #driver.get("file:///Users/justus/web-performance/youtube_iframe.html")
+        driver.set_page_load_timeout(30)
+        # driver.get(f'https://{page}')
+        # driver.get("file:///Users/justus/web-performance/youtube_iframe.html")
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script('return document.readyState') != 'complete':
             time.sleep(1)
 
-
         try:
             wait = WebDriverWait(driver, 10000)
-            youtube_player_iframe = wait.until(EC.visibility_of_element_located((By.ID, 'player')))
+            youtube_player_iframe = wait.until(
+                EC.visibility_of_element_located((By.ID, 'player')))
             driver.execute_script(f'setPlayerSize({fwidth},{fheight});')
-            driver.execute_script(f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");')
+            driver.execute_script(
+                f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");')
             time.sleep(1)
-            video_duration_sec = driver.execute_script(script_get_video_duration)
-            print(video_duration_sec)
+            yt_iframe_api_video_duration_sec = driver.execute_script(
+                script_get_video_duration)
+            print(yt_iframe_api_video_duration_sec)
             driver.execute_script('startVideoAndLog()')
-            #youtube_player_iframe = driver.find_element_by_id('player')
-            print('switching to yt iframe')
-            driver.switch_to.frame(youtube_player_iframe)
-            #driver.switch_to.frame('player')
-            #driver.switch_to.default_content()
-            #html5video = driver.find_element(By.TAG_NAME, "video")
-            #print(driver.find_element_by_tag_name("video").get_attribute("src"))
-            skip_timer_so_that_getting_video_buffer_doesnt_crash = 2
-            while True:
-                print('fetching nerdstats')
-                nerdstatslog.append(driver.execute_script(script_get_nerdstats))
-                if skip_timer_so_that_getting_video_buffer_doesnt_crash > 0:
-                    skip_timer_so_that_getting_video_buffer_doesnt_crash = skip_timer_so_that_getting_video_buffer_doesnt_crash - 1
-                else:
-                    print(driver.execute_script(script_get_video_buffered))
-                if driver.execute_script(script_get_video_ended):
-                    print(nerdstatslog)
-                    return None
-                time.sleep(1)
+            #youtube_player_iframe = driver.find_element(By.ID, 'player')
+            try:
+                print('switching to yt iframe')
+                driver.switch_to.frame(youtube_player_iframe)
+                # driver.switch_to.frame('player')
+                # driver.switch_to.default_content()
+                ###driver.find_element(By.TAG_NAME, "video").get_attribute("src")
+                try:
+                    # this wait also results in script_get_video_buffered running without crashing selenium
+                    wait = WebDriverWait(driver, 3)
+                    video_duration_seconds = wait.until(
+                        video_element_has_duration_attribute())
+                    if play_duration_seconds <= 0:
+                        play_duration_seconds = int(
+                            float(video_duration_seconds)) + 20
+                    while play_duration_seconds >= 0:
+                        print('fetching nerdstats '+str(play_duration_seconds))
+                        nerdstats = driver.execute_script(script_get_nerdstats)
+                        ###nerdstats_log.append({"timestamp":time.time(),"nerd_stats": nerdstats})
+                        nerdstats_log.append(nerdstats)
+                        # print(driver.execute_script(script_get_nerdstats_buffer))
+                        # print(driver.execute_script(script_get_video_buffered))
+                        if driver.execute_script(script_get_video_ended):
+                            break
+                        play_duration_seconds = play_duration_seconds - 1
+                        time.sleep(1)
+                    driver.switch_to.default_content()
+                    print('switched out of iframe')
+                    event_log = driver.execute_script("return getEventLog();")
+                    ###driver.execute_script('return window.eventLog')
+                    return (event_log, nerdstats_log)
+                except selenium.common.exceptions.WebDriverException as e:
+                    print('failed monitoring loop')
+                    return ([{'error': 'failed monitoring loop ### '+str(e)}], [])
+            except selenium.common.exceptions.WebDriverException as e:
+                print('failed switching selenium focus to youtube iframe')
+                return ([{'error': 'failed switching selenium focus to youtube iframe ### '+str(e)}], [])
         except selenium.common.exceptions.WebDriverException as e:
-            #driver.quit()
-            print('failed inner try')
-            print(str(e))
-            return {'error': str(e)}
-
-        
-        #driver.find
-        #driver.execute_cdp_cmd('player = document.getElementsByTagName("video")[0];')
-        #return driver.execute_script(script)
-        return None
+            print('failed loading player')
+            return ([{'error': 'failed loading player ### '+str(e)}], [])
     except selenium.common.exceptions.WebDriverException as e:
-        #driver.quit()
-        print('failed outer try')
+        print('failed driver.get()')
         print(str(e))
-        return {'error': str(e)}
+        return ([{'error': 'failed driver.get() ### '+str(e)}], [])
+
 
 def perform_page_load(page, cache_warming=0):
-    #keep browser open for local testing
-    global driver;
+    # keep browser open for local testing
+    global driver
     driver = create_driver()
+    # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
     #performance_metrics = get_page_performance_metrics(driver, page)
-    performance_metrics = load_youtube(driver)
-    #print(performance_metrics)
-    driver.switch_to.default_content()
-    print('switched out of iframe')
-    print(driver.execute_script("return getEventLog();"))
-    driver.quit()
-    #driver.execute_script('return window.eventLog')
+    # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
+    if cache_warming == 1:
+        event_log, nerd_stats = load_youtube(
+            driver, play_duration_seconds=3, video_id=page)
+    else:
+        event_log, nerd_stats = load_youtube(driver, fwidth=width, fheight=height, suggested_quality=suggested_quality,
+                                             start_seconds=start_seconds, play_duration_seconds=play_duration_seconds, video_id=page)
 
-    #driver.quit()
-    ## insert page into database
-    #if 'error' not in performance_metrics:
+    # print(performance_metrics)
+    driver.quit()
+    if 'error' not in event_log[0]:
+        for event in parse_nerd_stats(nerd_stats):
+            insert_performance(page, event, timestamp,
+                               cache_warming=cache_warming)
+        for event in event_log:
+            for key in iframe_api_elements.keys():
+                if key not in event.keys():
+                    typelookup = iframe_api_elements[key]
+                    if typelookup == 'string':
+                        event[key] = '-1'
+                    if typelookup == 'float':
+                        event[key] = -1.0
+                    if typelookup == 'int':
+                        event[key] = -1
+            for key in nerd_stats_elements.keys():
+                if key not in event.keys():
+                    typelookup = nerd_stats_elements[key]
+                    if typelookup == 'string':
+                        event[key] = '-1'
+                    if typelookup == 'float':
+                        event[key] = -1.0
+                    if typelookup == 'int':
+                        event[key] = -1
+            event['available_qualities'] = str(event['available_qualities'])
+            insert_performance(page, event, timestamp,
+                               cache_warming=cache_warming)
+
+    # insert page into database
+    # if 'error' not in performance_metrics:
     #    insert_performance(page, performance_metrics, timestamp, cache_warming=cache_warming)
-    #else:
-    #    insert_performance(page, {k: 0 for k in measurement_elements}, timestamp, cache_warming=cache_warming,
-    #                       error=performance_metrics['error'])
+    else:
+        insert_performance(page, {k: 0 for k in measurement_elements}, timestamp, cache_warming=cache_warming,
+                           error=event_log[0]['error'])
     # send restart signal to dnsProxy after loading the page
-    #if proxyPID != 0:
-    #    os.system("sudo kill -SIGUSR1 %d" % proxyPID)
-    #    time.sleep(0.5)
+    if proxyPID != 0:
+        os.system("sudo kill -SIGUSR1 %d" % proxyPID)
+        time.sleep(0.5)
+
+
+def parse_nerd_stats(nerd_stats):
+    nerd_stats_log = []
+    for item in nerd_stats:
+        nerd_stats_log.append({
+            'time': item['time'],
+            'event_type': 'nerd_stats',
+            'buffer_perc': -1.0,
+            'curr_play_time': -1.0,
+            'video_dur': -1.0,
+            'current_quality': '',
+            'available_qualities': '',
+            'bandwidth_kbps': item['nerdstats']['bandwidth_kbps'],
+            'buffer_health_seconds': item['nerdstats']['buffer_health_seconds'],
+            'codecs': item['nerdstats']['codecs'],
+            'dims_and_frames': item['nerdstats']['dims_and_frames'],
+            'resolution': item['nerdstats']['resolution'],
+            'network_activity_bytes': item['nerdstats']['network_activity_bytes']
+        })
+    return nerd_stats_log
 
 
 def create_measurements_table():
@@ -227,29 +318,19 @@ def create_measurements_table():
             domain string,
             vantagePoint string,
             timestamp datetime,
-            connectEnd integer,
-            connectStart integer,
-            domComplete integer,
-            domContentLoadedEventEnd integer,
-            domContentLoadedEventStart integer,
-            domInteractive integer,
-            domainLookupEnd integer,
-            domainLookupStart integer,
-            duration integer,
-            encodedBodySize integer,
-            decodedBodySize integer,
-            transferSize integer,
-            fetchStart integer,
-            loadEventEnd integer,
-            loadEventStart integer,
-            requestStart integer,
-            responseEnd integer,
-            responseStart integer,
-            secureConnectionStart integer,
-            startTime integer,
-            firstPaint integer,
-            firstContentfulPaint integer,
-            nextHopProtocol string,
+            time integer,
+            event_type string,
+            buffer_perc real,
+            curr_play_time real,
+            video_dur real,
+            current_quality string,
+            available_qualities string,
+            bandwidth_kbps string,
+            buffer_health_seconds string,
+            codecs string,
+            dims_and_frames string,
+            resolution string,
+            network_activity_bytes string,
             cacheWarming integer,
             error string,
             PRIMARY KEY (id)
@@ -293,11 +374,12 @@ def insert_performance(page, performance, timestamp, cache_warming=0, error=''):
     performance['vantagePoint'] = vantage_point
     # generate unique ID
     sha = hashlib.md5()
-    sha_input = ('' + protocol + server + page + str(cache_warming) + vantage_point + timestamp.strftime("%H:%d"))
+    sha_input = ('' + protocol + server + page + str(cache_warming) +
+                 vantage_point + str(performance['time']) + performance['event_type'])
     sha.update(sha_input.encode())
     uid = uuid.UUID(sha.hexdigest())
     performance['id'] = str(uid)
-
+    
     # insert into database
     cursor.execute(f"""
     INSERT INTO measurements VALUES ({(len(measurement_elements) - 1) * '?,'}?);
@@ -344,7 +426,8 @@ def insert_lookups(uid):
             if 'successfully finished exchange' in line:
                 if 'tranco-list.eu.' not in line:
                     currently_parsing = 'success'
-                    domain = re.search('exchange of ;(.*)IN', line).group(1).rstrip()
+                    domain = re.search('exchange of ;(.*)IN',
+                                       line).group(1).rstrip()
                     elapsed = re.search('Elapsed (.*)ms', line)
                     factor = 1.0
                     if elapsed is None:
@@ -357,7 +440,8 @@ def insert_lookups(uid):
             # upon failure
             elif 'failed to exchange' in line:
                 currently_parsing = 'failure'
-                domain = re.search('failed to exchange ;(.*)IN', line).group(1).rstrip()
+                domain = re.search(
+                    'failed to exchange ;(.*)IN', line).group(1).rstrip()
                 answer = re.search('Cause: (.*)', line).group(1).rstrip()
                 elapsed = re.search('in (.*)ms\\.', line)
                 factor = 1.0
@@ -392,16 +476,15 @@ def insert_lookups(uid):
         logs.write('')
 
 
-
-#create_measurements_table()
-#create_lookups_table()
-#create_qlogs_table()
+create_measurements_table()
+create_lookups_table()
+create_qlogs_table()
 for p in pages:
-    ## cache warming
-    #print(f'{p}: cache warming')
-    #perform_page_load(p, 1)
+    # cache warming
+    print(f'{p}: cache warming')
+    perform_page_load(p, 1)
     # performance measurement
     print(f'{p}: measuring')
     perform_page_load(p)
 
-#db.close()
+db.close()
