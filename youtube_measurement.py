@@ -2,7 +2,10 @@ from cgitb import html
 import re
 import time
 import selenium.common.exceptions
-from selenium import webdriver
+#from selenium import webdriver
+# -> enables looking at requests and could aid in figuring out buffer size in bytes instead of time
+from seleniumwire import webdriver
+# selenium wire only changes web driver import
 from selenium.webdriver.chrome.options import Options as chromeOptions
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -14,7 +17,7 @@ from datetime import datetime
 import hashlib
 import uuid
 import os
-# from seleniumwire import webdriver -> enabled looking at requests and could aid in figuring out buffer size in bytes instead of time
+import json
 
 dnsproxy_dir = "/home/ubuntu/dnsproxy/"
 
@@ -57,7 +60,7 @@ try:
     pages = sys.argv[11:]
     print(pages)
 except IndexError:
-    print("Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point, \niframe width, iframe height, \nsuggested video quality (e.g. \"default\"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play")
+    print("Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point, \niframe width, iframe height, \nsuggested video quality (e.g. \"auto\"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play")
     sys.exit(1)
 
 # fwidth=640, fheight=360, suggested_quality="default", start_seconds=0, play_duration_seconds=0, video_id="YE7VzlLtp-4"
@@ -78,7 +81,7 @@ chrome_options.add_argument('--autoplay-policy=no-user-gesture-required')
 
 def create_driver():
     if browser == 'chrome':
-        return webdriver.Chrome(options=chrome_options)
+        return webdriver.Chrome(options=chrome_options, seleniumwire_options={'enable_har': True})
     else:
         return webdriver.Firefox(options=firefox_options)
 
@@ -137,33 +140,42 @@ class video_element_has_duration_attribute(object):
             return False
 
 
-def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", start_seconds=0,
+def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="auto", start_seconds=0,
                  play_duration_seconds=0, video_id="YE7VzlLtp-4"):
     # https://stackoverflow.com/a/58068828
     script_get_nerdstats = """
         var currentTime = new Date().getTime();
-        var iframe_player = document.getElementById("movie_player")
+        iframe_player = document.getElementById("movie_player")
         return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
         """
     script_get_nerdstats_buffer = 'return document.getElementById("movie_player").getStatsForNerds().buffer_health_seconds;'
 
+    script_get_movie_player_playback_time = 'return document.getElementById("movie_player").getMediaReferenceTime();'
+
     # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
     script_get_video_duration = 'return getVideoDuration()'
     script_get_video_ended = """
-        var video = document.getElementsByTagName("video")[0];
+        video = document.getElementsByTagName("video")[0];
         return video.ended
     """
 
     script_get_video_buffered_wrong = 'video = document.getElementsByTagName("video")[0]; return video.buffered.end(0) - video.buffered.start(0);'
     # https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
     script_get_video_buffered = """
-        var video = document.getElementsByTagName("video")[0];
+        video = document.getElementsByTagName("video")[0];
         var currentTime = video.currentTime;
 		var buffLen = video.buffered.length;
 		var availablePlaybackTime = video.buffered.end(buffLen-1);
 		var bufferedTime = availablePlaybackTime - currentTime;
         return bufferedTime;
     """
+
+    # this only works on the main youtube page, no in iframes
+    script_get_manifest = 'return ytInitialPlayerResponse'
+
+    # document.getElementById("movie_player").getMediaReferenceTime() -> current playback time in seconds
+    # getProgressState()['loaded'] - getProgressState()['current'] returns buffered amount
+    # getAdState() -> might need this for more general video playback?
 
     nerdstats_log = []
     try:
@@ -202,6 +214,8 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", s
                     while play_duration_seconds >= 0:
                         print('fetching nerdstats '+str(play_duration_seconds))
                         nerdstats = driver.execute_script(script_get_nerdstats)
+                        nerdstats['media_reference_time'] = driver.execute_script(
+                            script_get_movie_player_playback_time)
                         ###nerdstats_log.append({"timestamp":time.time(),"nerd_stats": nerdstats})
                         nerdstats_log.append(nerdstats)
                         # print(driver.execute_script(script_get_nerdstats_buffer))
@@ -217,6 +231,7 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", s
                     return (event_log, nerdstats_log)
                 except selenium.common.exceptions.WebDriverException as e:
                     print('failed monitoring loop')
+                    print(e)
                     return ([{'error': 'failed monitoring loop ### '+str(e)}], [])
             except selenium.common.exceptions.WebDriverException as e:
                 print('failed switching selenium focus to youtube iframe')
@@ -231,8 +246,6 @@ def load_youtube(driver, fwidth=640, fheight=360, suggested_quality="default", s
 
 
 def perform_page_load(page, cache_warming=0):
-    # keep browser open for local testing
-    global driver
     driver = create_driver()
     # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
@@ -245,13 +258,43 @@ def perform_page_load(page, cache_warming=0):
         event_log, nerd_stats = load_youtube(driver, fwidth=width, fheight=height, suggested_quality=suggested_quality,
                                              start_seconds=start_seconds, play_duration_seconds=play_duration_seconds, video_id=page)
 
+    # youtube seems to have an endpoint to get the manifest but they keep restricting access to it
+    # -> https://stackoverflow.com/questions/67615278/get-video-info-youtube-endpoint-suddenly-returning-404-not-found
+    # on the normal youtube website, ytInitialPlayerResponse is a variable that has all possible itags and their corresponding request URLs
+    # however this does not for iframes
+
+    # this does not save timings and the GET requests appear to be missing from the har file for some reason
+    # if using selenium wire:
+    # fetch http responses for bandwidth stuff
+    # for request in driver.requests:
+    #    if request.response:
+    #        if "googlevideo.com/videoplayback" in request.url:
+    #            print(dir(request.response))
+    #            print(dir(request))
+    #            print(request.url,
+    #                request.params,
+    #                request.response.status_code,
+    #                request.response.headers['Content-Type'],
+    #                request.response.headers['Content-Length'],
+    #                request.response.date
+   #             )
     # print(performance_metrics)
+    #json_har = json.loads(driver.har)['log']['entries']
+    #video_requests = []
+
+    # for entry in json_har:
+    #    if "googlevideo.com/videoplayback" in entry['request']['url']:
+    #        print(json_har[len(json_har)-1].keys())
+    #        print(json_har[len(json_har)-1]['request'])
+    #        print(json_har[len(json_har)-1]['response'])
+    #        print(json_har[len(json_har)-1]['timings'])
+
     driver.quit()
     if 'error' not in event_log[0]:
         for event in parse_nerd_stats(nerd_stats):
             insert_performance(page, event, timestamp,
                                cache_warming=cache_warming)
-        #add missing keys in their correct format (most basic types, other sqlite types are derived from this anyway)
+        # add missing keys in their correct format (most basic types, other sqlite types are derived from this anyway)
         for event in event_log:
             for key in iframe_api_elements.keys():
                 if key not in event.keys():
@@ -294,7 +337,7 @@ def parse_nerd_stats(nerd_stats):
             'time': item['time'],
             'event_type': 'nerd_stats',
             'buffer_perc': -1.0,
-            'curr_play_time': -1.0,
+            'curr_play_time': item['media_reference_time'],
             'video_dur': -1.0,
             'current_quality': '',
             'available_qualities': '',
@@ -373,12 +416,14 @@ def insert_performance(page, performance, timestamp, cache_warming=0, error=''):
     performance['vantagePoint'] = vantage_point
     # generate unique ID
     sha = hashlib.md5()
+    if performance['event_type'] == 0:
+        performance['event_type'] = "selenium_error"
     sha_input = ('' + protocol + server + page + str(cache_warming) +
                  vantage_point + str(performance['time']) + performance['event_type'])
     sha.update(sha_input.encode())
     uid = uuid.UUID(sha.hexdigest())
     performance['id'] = str(uid)
-    
+
     # insert into database
     cursor.execute(f"""
     INSERT INTO measurements VALUES ({(len(measurement_elements) - 1) * '?,'}?);

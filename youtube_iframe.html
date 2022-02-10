@@ -72,7 +72,7 @@
             the actual playback start
         */
         function onPlayerStateChange(event) {
-            currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
                     console.log("started playback")
@@ -106,7 +106,7 @@
             }
         }
         function onPlayerQualityChange(event) {
-            currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
             currentQuality = event.data;
             switch (event.data) {
                 case 'auto':
