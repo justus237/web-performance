@@ -30,7 +30,7 @@
                 width: '640',
                 videoId: 'aqz-KE-bpKQ',
                 //set mute to 1 when testing in a browser that doesn't have chrome's auto play policy disabled
-                playerVars: { 'mute': 0},
+                playerVars: { 'mute': 0 },
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
@@ -72,118 +72,119 @@
             the actual playback start
         */
         function onPlayerStateChange(event) {
-            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = Date.now();//Math.round(+new Date()/1000);
             switch (event.data) {
                 case YT.PlayerState.PLAYING:
                     console.log("started playback")
                     if (isLogging) {
-                        eventLog.push({"event_type":"PlayerStatePLAYING", "time": currentTime, "available_qualities":player.getAvailableQualityLevels(), "current_quality": player.getPlaybackQuality(), "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "PlayerStatePLAYING", "time": currentTime, "available_qualities": player.getAvailableQualityLevels(), "current_quality": player.getPlaybackQuality(), "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case YT.PlayerState.ENDED:
                     console.log("ended playback, stopping logging")
                     if (isLogging) {
-                        eventLog.push({"event_type":"PlayerStateENDED", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "PlayerStateENDED", "time": currentTime, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                         clearInterval(loggingIntervalID)
                     }
                 case YT.PlayerState.PAUSED:
                     console.log("paused playback")
                     if (isLogging) {
-                        eventLog.push({"event_type":"PlayerStatePAUSED", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "PlayerStatePAUSED", "time": currentTime, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case YT.PlayerState.BUFFERING:
                     console.log("buffering")
                     if (isLogging) {
-                        eventLog.push({"event_type":"PlayerStateBUFFERING", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "PlayerStateBUFFERING", "time": currentTime, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                         logBuffer()
                     }
                 case YT.PlayerState.CUED:
                     console.log("cued")
                     console.log(event)
                     if (isLogging) {
-                        eventLog.push({"event_type":"PlayerStateCUED", "time": currentTime, "available_qualities":player.getAvailableQualityLevels(), "current_quality": player.getPlaybackQuality(), "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "PlayerStateCUED", "time": currentTime, "available_qualities": player.getAvailableQualityLevels(), "current_quality": player.getPlaybackQuality(), "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
-                    
+
             }
         }
         function onPlayerQualityChange(event) {
-            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = Date.now();//Math.round(+new Date()/1000);
             currentQuality = event.data;
             switch (event.data) {
                 case 'auto':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to auto');
-                        eventLog.push({"event_type":"QualityChangeAuto", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeAuto", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'tiny':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to tiny');
-                        eventLog.push({"event_type":"QualityChangeTiny", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeTiny", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'small':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to small');
-                        eventLog.push({"event_type":"QualityChangeSmall", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeSmall", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'medium':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to medium');
-                        eventLog.push({"event_type":"QualityChangeMedium", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeMedium", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'large':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to large');
-                        eventLog.push({"event_type":"QualityChangeLarge", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeLarge", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'hd720':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to hd720');
-                        eventLog.push({"event_type":"QualityChange720", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChange720", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'hd1080':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to hd1080');
-                        eventLog.push({"event_type":"QualityChange1080", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChange1080", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'highres':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to highres');
-                        eventLog.push({"event_type":"QualityChangeHighRes", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChangeHighRes", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'hd1440':
-                    
+
                     if (isLogging) {
                         console.log('quality changed to hd1440');
-                        eventLog.push({"event_type":"QualityChange1440", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChange1440", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
                 case 'hd2160':
+
                     if (isLogging) {
                         console.log('quality changed to hd2160');
-                        eventLog.push({"event_type":"QualityChange2160", "time": currentTime, "current_quality":currentQuality, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()})
+                        eventLog.push({ "event_type": "QualityChange2160", "time": currentTime, "current_quality": currentQuality, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() })
                     }
 
             }
         }
         function onPlayerError(event) {
-            console.log("error "+event.data)
+            console.log("error " + event.data)
         }
         function stopVideo() {
             player.stopVideo();
         }
         function startVideoAndLog() {
-            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = Date.now();//Math.round(+new Date()/1000);
             if (playerIsReady) {
                 player.playVideo();
                 isLogging = true;
                 videoDur = player.getDuration()
-                eventLog.push({"event_type":"PlayStartedFromFunction", "time": currentTime, "video_dur": videoDur})
+                eventLog.push({ "event_type": "PlayStartedFromFunction", "time": currentTime, "video_dur": videoDur })
                 loggingIntervalID = setInterval(logBuffer, 1000)
                 return true
             }
@@ -207,11 +208,11 @@
         }
 
         function setVideoAndPlayAndLog(videoId, startSeconds, suggestedQuality) {
-            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
+            var currentTime = Date.now();//Math.round(+new Date()/1000);
             player.loadVideoById(videoId, startSeconds, suggestedQuality)
             isLogging = true;
             videoDur = player.getDuration()
-            eventLog.push({"event_type":"LoadVideoAndPlayStartedFromFunction", "time": currentTime, "video_dur": videoDur})
+            eventLog.push({ "event_type": "LoadVideoAndPlayStartedFromFunction", "time": currentTime, "video_dur": videoDur })
             loggingIntervalID = setInterval(logBuffer, 1000)
         }
 
@@ -225,8 +226,8 @@
 
         function logBuffer() {
             //console.log(getBufferSecondsApprox());
-            var currentTime = new Date().getTime();//Math.round(+new Date()/1000);
-            eventLog.push({"event_type":"BufferLogging", "time": currentTime, "buffer_perc":player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime()});
+            var currentTime = Date.now();//Math.round(+new Date()/1000);
+            eventLog.push({ "event_type": "BufferLogging", "time": currentTime, "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() });
         }
 
         function getVideoDuration() {
@@ -235,7 +236,7 @@
 
         function getBufferSecondsApprox() {
             //https://stackoverflow.com/a/58068828
-            return player.getVideoLoadedFraction()*player.getDuration()-player.getCurrentTime()
+            return player.getVideoLoadedFraction() * player.getDuration() - player.getCurrentTime()
         }
 
         function getEventLog() {
