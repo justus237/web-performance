@@ -28,7 +28,7 @@ pages = ["aqz-KE-bpKQ"]
 
 
 # performance elements to extract
-measurement_elements = (
+measurement_elements_iframe_api = (
     "id",
     "protocol",
     "server",
@@ -42,18 +42,13 @@ measurement_elements = (
     "video_dur",
     "current_quality",
     "available_qualities",
-    "bandwidth_kbps",
-    "buffer_health_seconds",
-    "codecs",
-    "dims_and_frames",
-    "resolution",
-    "network_activity_bytes",
     "cacheWarming",
-    "error",
+    "msm_id"
 )
 
 
 iframe_api_elements = {
+    "time": "datetime",
     "event_type": "string",
     "buffer_perc": "float",
     "curr_play_time": "float",
@@ -61,14 +56,125 @@ iframe_api_elements = {
     "current_quality": "string",
     "available_qualities": "string",
 }
+
+
+measurement_elements_nerd_stats = (
+    "id",
+    "protocol",
+    "server",
+    "domain",
+    "vantagePoint",
+    "timestamp",
+    "time",
+    "curr_play_time",
+    "bandwidth_kbps",
+    "buffer_health_seconds",
+    "codecs",
+    "dims_and_frames",
+    "resolution",
+    "network_activity_bytes",
+    "cacheWarming",
+    "msm_id"
+)
+
 nerd_stats_elements = {
+    "id": "string",
+    "protocol": "string",
+    "server": "string",
+    "domain": "string",
+    "vantagePoint": "string",
+    "timestamp": "datetime",
+    "time": "datetime",
+    'curr_play_time': "string",
     "bandwidth_kbps": "string",
     "buffer_health_seconds": "string",
     "codecs": "string",
     "dims_and_frames": "string",
     "resolution": "string",
     "network_activity_bytes": "string",
+    "cacheWarming": "int",
+    "msm_id": "string"
 }
+
+
+measurement_elements_resouce_timing = (
+    "id",
+    "protocol",
+    "server",
+    "domain",
+    "vantagePoint",
+    "timestamp",
+    'connectEnd',
+    'connectStart',
+    'decodedBodySize',
+    'domainLookupEnd',
+    'domainLookupStart',
+    'duration',
+    'encodedBodySize',
+    'entryType',
+    'fetchStart',
+    'initiatorType',
+    'name',
+    'nextHopProtocol',
+    'requestStart',
+    'responseEnd',
+    'responseStart',
+    'secureConnectionStart',
+    'startTime',
+    'transferSize',
+    "cacheWarming",
+    "msm_id"
+)
+
+resource_timing_elements = {
+    "id": "string",
+    "protocol": "string",
+    "server": "string",
+    "domain": "string",
+    "vantagePoint": "string",
+    "timestamp": "datetime",
+    'connectEnd': 'datetime',
+    'connectStart': 'datetime',
+    'decodedBodySize': 'int',
+    'domainLookupEnd': 'datetime',
+    'domainLookupStart': 'datetime',
+    'duration': 'float',
+    'encodedBodySize': 'int',
+    'entryType': 'string',
+    'fetchStart': 'datetime',
+    'initiatorType': 'string',
+    'name': 'string',
+    'nextHopProtocol': 'string',
+    #    'redirectEnd': 'int',
+    #    'redirectStart': 'int',
+    'requestStart': 'datetime',
+    'responseEnd': 'datetime',
+    'responseStart': 'datetime',
+    'secureConnectionStart': 'datetime',
+    #    'serverTiming': 'list',
+    'startTime': 'datetime',
+    'transferSize': 'int',
+    #    'workerStart': 'int',
+    #    'workerTiming': 'list'
+    "cacheWarming": "int",
+    "msm_id": "string"
+}
+
+relevant_resource_timing_keys = ['connectEnd', 'connectStart',
+                                 'decodedBodySize',
+                                 'domainLookupEnd', 'domainLookupStart',
+                                 'duration',
+                                 'encodedBodySize',
+                                 'entryType',
+                                 'fetchStart',
+                                 'initiatorType',
+                                 'name',
+                                 'nextHopProtocol',
+                                 'requestStart', 'responseEnd', 'responseStart',
+                                 'secureConnectionStart',
+                                 'startTime',
+                                 'transferSize']
+
 
 # create db
 db = sqlite3.connect("web-performance.db")
@@ -97,7 +203,8 @@ try:
     width = int(sys.argv[6])
     height = int(sys.argv[7])
     suggested_quality = sys.argv[8]
-    res_list = ['auto', 'tiny', 'small', 'medium', 'large', 'hd720', 'hd1080', 'highres', 'hd1440', 'hd2160']
+    res_list = ['auto', 'tiny', 'small', 'medium', 'large',
+                'hd720', 'hd1080', 'highres', 'hd1440', 'hd2160']
     if suggested_quality not in res_list:
         print('suggested resolution should be one of these: '+str(res_list))
         sys.exit(1)
@@ -110,8 +217,6 @@ except IndexError:
         'Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point, \niframe width, iframe height, \nsuggested video quality (e.g. "auto"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play'
     )
     sys.exit(1)
-
-# fwidth=640, fheight=360, suggested_quality="default", start_seconds=0, play_duration_seconds=0, video_id="YE7VzlLtp-4"
 
 
 browser = "chrome"
@@ -132,13 +237,6 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
 
 
-def timing_interceptor(request, response):  # A response interceptor takes two args
-    if "googlevideo.com/videoplayback" in request.url:
-        # if request.url == 'https://server.com/some/path':
-        response.headers['Timing-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Origin'] = '*'
-
-
 def create_driver():
     if browser == "chrome":
         return webdriver.Chrome(
@@ -147,41 +245,6 @@ def create_driver():
         )
     else:
         return webdriver.Firefox(options=firefox_options)
-
-
-def get_page_performance_metrics(driver, page):
-    script = """
-            // Get performance and paint entries
-            var perfEntries = performance.getEntriesByType("navigation");
-            var paintEntries = performance.getEntriesByType("paint");
-    
-            var entry = perfEntries[0];
-            var fpEntry = paintEntries[0];
-            var fcpEntry = paintEntries[1];
-    
-            // Get the JSON and first paint + first contentful paint
-            var resultJson = entry.toJSON();
-            resultJson.firstPaint = 0;
-            resultJson.firstContentfulPaint = 0;
-            try {
-                for (var i=0; i<paintEntries.length; i++) {
-                    var pJson = paintEntries[i].toJSON();
-                    if (pJson.name == 'first-paint') {
-                        resultJson.firstPaint = pJson.startTime;
-                    } else if (pJson.name == 'first-contentful-paint') {
-                        resultJson.firstContentfulPaint = pJson.startTime;
-                    }
-                }
-            } catch(e) {}
-            
-            return resultJson;
-            """
-    try:
-        driver.set_page_load_timeout(30)
-        driver.get(f"https://{page}")
-        return driver.execute_script(script)
-    except selenium.common.exceptions.WebDriverException as e:
-        return {"error": str(e)}
 
 
 class video_element_has_duration_attribute(object):
@@ -216,11 +279,10 @@ def load_youtube(
 ):
     # https://stackoverflow.com/a/58068828
     script_get_nerdstats = """
-        var currentTime = new Date().getTime();
+        var currentTime = Date.now()
         iframe_player = document.getElementById("movie_player")
         return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
         """
-    script_get_nerdstats_buffer = 'return document.getElementById("movie_player").getStatsForNerds().buffer_health_seconds;'
 
     script_get_movie_player_playback_time = (
         'return document.getElementById("movie_player").getMediaReferenceTime();'
@@ -244,7 +306,7 @@ def load_youtube(
         return bufferedTime;
     """
 
-    # this only works on the main youtube page, no in iframes
+    # this only works on the main youtube page, not in iframes
     script_get_manifest = "return ytInitialPlayerResponse"
 
     # https://developer.mozilla.org/en-US/docs/Web/API/Resource_Timing_API/Using_the_Resource_Timing_API
@@ -359,41 +421,39 @@ def load_youtube(
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
                 print(len(resource_timings))
+                time_sync_py = time.time_ns()
+                time_sync_js = driver.execute_script("return Date.now();")
                 driver.switch_to.default_content()
                 print("switched out of iframe")
                 event_log = driver.execute_script("return getEventLog();")
                 ###driver.execute_script('return window.eventLog')
-                return (event_log, nerdstats_log, resource_timings)
+                return (event_log, nerdstats_log, resource_timings, time_sync_py, time_sync_js)
             except selenium.common.exceptions.WebDriverException as e:
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
-                        [], [])
+                        [], [], -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
-            return ([{"error": "failed loading player ### " + str(e)}], [], [])
+            return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
         print(str(e))
-        return ([{"error": "failed driver.get() ### " + str(e)}], [], [])
+        return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1)
 
 
 def perform_page_load(page, cache_warming=0):
     driver = create_driver()
-    #driver.response_interceptor = timing_interceptor
-    # driver.scopes = [
-    #    '.*googlevideo.*'
-    # ]
     # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
     # performance_metrics = get_page_performance_metrics(driver, page)
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
-        event_log, nerd_stats, resource_timings = load_youtube(
+        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js = load_youtube(
             driver, play_duration_seconds=3, video_id=page
         )
     else:
-        event_log, nerd_stats, resource_timings = load_youtube(
+        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js = load_youtube(
             driver,
             fwidth=width,
             fheight=height,
@@ -404,95 +464,35 @@ def perform_page_load(page, cache_warming=0):
         )
     driver.quit()
 
-    resource_time_start_adjusted_timestamp = resource_timings.pop(0)
-    # only look at resources that are actual video or audio requests
-    resource_timings = [
-        timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
-    for timing in resource_timings:
-        # (requestStart-responseEnd) + some delay (decoding?) = duration
-        # decodedBodySize -> bytes fetched (range in name)
-        # all times are in milliseconds
-        # https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp
-        # translating to unix timestamp in ms removes precision sadly
-        for time_key in ['connectEnd', 'connectStart', 'domainLookupEnd', 'domainLookupStart', 'fetchStart', 'requestStart', 'responseEnd', 'responseStart', 'secureConnectionStart', 'startTime', ]:
-            timing[time_key] = timing[time_key] + \
-                resource_time_start_adjusted_timestamp
-        print(timing['name'])
-        print(timing['nextHopProtocol'])
-        print(timing['requestStart'])
-        print(timing['responseEnd'])
-        print(timing['duration'])
-        print(timing['decodedBodySize'])
-        url_params = dict(parse.parse_qs(parse.urlsplit(timing['name']).query))
-        timing['itag'] = url_params['itag'][0]
-        timing['rbuf'] = url_params['rbuf'][0]
-        timing['range'] = url_params['range'][0]
-    relevant_keys = ['connectEnd', 'connectStart',
-                     'decodedBodySize',
-                     'domainLookupEnd', 'domainLookupStart',
-                     'duration',
-                     'encodedBodySize',
-                     'entryType',
-                     'fetchStart',
-                     'initiatorType',
-                     'name',
-                     'nextHopProtocol',
-                     'requestStart', 'responseEnd', 'responseStart',
-                     'secureConnectionStart',
-                     'startTime',
-                     'transferSize',
-                     'itag',
-                     'rbuf',
-                     'range']
-    # remove keys that are static or always empty
-    resource_timings = [{k: v for k, v in timing_dict.items(
-    ) if k in relevant_keys} for timing_dict in resource_timings]
-    # remove duplicates, all items inside the dicts should be hashable
-    resource_timings = [dict(t)
-                        for t in {tuple(d.items()) for d in resource_timings}]
+    # generate unique ID for the overall measurement
+    sha = hashlib.md5()
+    sha_input = ('' + protocol + server + page + str(cache_warming) +
+                 vantage_point + timestamp.strftime("%H:%d"))
+    sha.update(sha_input.encode())
+    uid = uuid.UUID(sha.hexdigest())
+    if protocol == "quic":
+        insert_qlogs(str(uid))
+    # insert all domain lookups into second table (originally only if there are no errors, changed it to always do it)
+    if proxyPID != 0:
+        insert_lookups(str(uid))
 
-    # below code only works when using selenium wire
-    # https://www.w3.org/TR/resource-timing-2/
-    # If an HTML IFRAME element is included on the page, then only the resource requested by IFRAME src attribute is included as a PerformanceResourceTiming object in the Performance Timeline. Sub-resources requested by the IFRAME document will be included in the IFRAME document's Performance Timeline and not the parent document's Performance Timeline.
-    # youtube seems to have an endpoint to get the manifest but they keep restricting access to it
-    # -> https://stackoverflow.com/questions/67615278/get-video-info-youtube-endpoint-suddenly-returning-404-not-found
-    # on the normal youtube website, ytInitialPlayerResponse is a variable that has all possible itags and their corresponding request URLs
-    # however this does not for iframes
+    # insert into overall measurements table that also tries to track time drift between python and javascript
+    error = ""
+    if "error" in event_log[0]:
+        error = event_log[0]["error"]
 
-    # this does not save timings and the GET requests appear to be missing from the har file for some reason
-    # if using selenium wire:
-    # fetch http responses for bandwidth stuff
-    # for request in driver.requests:
-    #    if request.response:
-    #        if "googlevideo.com/videoplayback" in request.url:
-    #            print(dir(request.response))
-    #            print(dir(request))
-    #            print(request.url,
-    #                request.params,
-    #                request.response.status_code,
-    #                request.response.headers['Content-Type'],
-    #                request.response.headers['Content-Length'],
-    #                request.response.date
-    #             )
-    # print(performance_metrics)
-    # json_har = json.loads(driver.har)['log']['entries']
-    # video_requests = []
+    resource_timing_timestamp = resource_timings.pop(0)
 
-    # for entry in json_har:
-    #    if "googlevideo.com/videoplayback" in entry['request']['url']:
-    #        print(json_har[len(json_har)-1].keys())
-    #        print(json_har[len(json_har)-1]['request'])
-    #        print(json_har[len(json_har)-1]['response'])
-    #        print(json_har[len(json_har)-1]['timings'])
+    insert_measurement(str(uid), time_sync_py, time_sync_js,
+                       resource_timing_timestamp, page, timestamp, error, cache_warming)
 
     if "error" not in event_log[0]:
-        for event in parse_nerd_stats(nerd_stats):
-            insert_performance(page, event, timestamp,
-                               cache_warming=cache_warming)
+        # youtube iframe api event log
         # add missing keys in their correct format (most basic types, other sqlite types are derived from this anyway)
         for event in event_log:
             for key in iframe_api_elements.keys():
                 if key not in event.keys():
+                    # fix missing items because not every log event contains all the columns (for now)
                     typelookup = iframe_api_elements[key]
                     if typelookup == "string":
                         event[key] = "-1"
@@ -500,30 +500,19 @@ def perform_page_load(page, cache_warming=0):
                         event[key] = -1.0
                     if typelookup == "int":
                         event[key] = -1
-            for key in nerd_stats_elements.keys():
-                if key not in event.keys():
-                    typelookup = nerd_stats_elements[key]
-                    if typelookup == "string":
-                        event[key] = "-1"
-                    if typelookup == "float":
-                        event[key] = -1.0
-                    if typelookup == "int":
-                        event[key] = -1
             event["available_qualities"] = str(event["available_qualities"])
-            insert_performance(page, event, timestamp,
-                               cache_warming=cache_warming)
+            insert_event(page, event, timestamp, str(
+                uid), cache_warming=cache_warming)
 
-    # insert page into database
-    # if 'error' not in performance_metrics:
-    #    insert_performance(page, performance_metrics, timestamp, cache_warming=cache_warming)
-    else:
-        insert_performance(
-            page,
-            {k: 0 for k in measurement_elements},
-            timestamp,
-            cache_warming=cache_warming,
-            error=event_log[0]["error"],
-        )
+        # nerd stats logging
+        for item in parse_nerd_stats(nerd_stats):
+            insert_nerdstats(page, item, timestamp, str(uid),
+                             cache_warming=cache_warming)
+
+        for item in parse_resource_timings(resource_timings):
+            insert_resources(page, item, timestamp, str(uid),
+                             cache_warming=cache_warming)
+
     # send restart signal to dnsProxy after loading the page
     if proxyPID != 0:
         os.system("sudo kill -SIGUSR1 %d" % proxyPID)
@@ -536,12 +525,7 @@ def parse_nerd_stats(nerd_stats):
         nerd_stats_log.append(
             {
                 "time": item["time"],
-                "event_type": "nerd_stats",
-                "buffer_perc": -1.0,
-                "curr_play_time": item["media_reference_time"],
-                "video_dur": -1.0,
-                "current_quality": "",
-                "available_qualities": "",
+                "curr_play_time": str(item["media_reference_time"]),
                 "bandwidth_kbps": item["nerdstats"]["bandwidth_kbps"],
                 "buffer_health_seconds": item["nerdstats"]["buffer_health_seconds"],
                 "codecs": item["nerdstats"]["codecs"],
@@ -553,10 +537,31 @@ def parse_nerd_stats(nerd_stats):
     return nerd_stats_log
 
 
-def create_measurements_table():
+def parse_resource_timings(resource_timings):
+    #resource_time_start_adjusted_timestamp = resource_timings.pop(0)
+    # only look at resources that are actual video or audio requests
+    resource_timings = [
+        timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
+    # for timing in resource_timings:
+    #    # (requestStart-responseEnd) + some delay (decoding?) = duration
+    #    # decodedBodySize -> bytes fetched (range in name)
+    #    # all times are in milliseconds
+    #    # https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp
+    #    # translating to unix timestamp in ms removes precision sadly
+    #    for time_key in ['connectEnd', 'connectStart', 'domainLookupEnd', 'domainLookupStart', 'fetchStart', 'requestStart', 'responseEnd', 'responseStart', 'secureConnectionStart', 'startTime', ]:
+    #        timing[time_key] = timing[time_key] + \
+    #            resource_time_start_adjusted_timestamp
+    # remove keys that are static or always empty
+    resource_timings = [{k: v for k, v in timing_dict.items(
+    ) if k in relevant_resource_timing_keys} for timing_dict in resource_timings]
+    # remove duplicates, all items inside the dicts should be hashable
+    return [dict(t) for t in {tuple(d.items()) for d in resource_timings}]
+
+
+def create_iframe_api_table():
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS measurements (
+        CREATE TABLE IF NOT EXISTS iframe_api (
             id string,
             protocol string,
             server string,
@@ -570,6 +575,27 @@ def create_measurements_table():
             video_dur real,
             current_quality string,
             available_qualities string,
+            cacheWarming integer,
+            msm_id string,
+            PRIMARY KEY (id)
+        );
+        """
+    )
+    db.commit()
+
+
+def create_nerd_stats_table():
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS nerd_stats (
+            id string,
+            protocol string,
+            server string,
+            domain string,
+            vantagePoint string,
+            timestamp datetime,
+            time datetime,
+            curr_play_time string,
             bandwidth_kbps string,
             buffer_health_seconds string,
             codecs string,
@@ -577,7 +603,44 @@ def create_measurements_table():
             resolution string,
             network_activity_bytes string,
             cacheWarming integer,
-            error string,
+            msm_id string,
+            PRIMARY KEY (id)
+        );
+        """
+    )
+    db.commit()
+
+
+def create_page_resources_table():
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS page_resources (
+            id string,
+            protocol string,
+            server string,
+            domain string,
+            vantagePoint string,
+            timestamp datetime,
+            connectEnd datetime,
+            connectStart datetime,
+            decodedBodySize int,
+            domainLookupEnd datetime,
+            domainLookupStart datetime,
+            duration float,
+            encodedBodySize int, 
+            entryType str,
+            fetchStart datetime,
+            initiatorType str,
+            name str,
+            nextHopProtocol str,
+            requestStart datetime,
+            responseEnd datetime,
+            responseStart datetime,
+            secureConnectionStart datetime,
+            startTime datetime,
+            transferSize int,
+            cacheWarming integer,
+            msm_id string,
             PRIMARY KEY (id)
         );
         """
@@ -594,7 +657,7 @@ def create_lookups_table():
                 elapsed numeric,
                 status string,
                 answer string,
-                FOREIGN KEY (measurement_id) REFERENCES measurements(id)
+                FOREIGN KEY (measurement_id) REFERENCES measurements(msm_id)
             );
             """
     )
@@ -607,21 +670,49 @@ def create_qlogs_table():
             CREATE TABLE IF NOT EXISTS qlogs (
                 measurement_id string,
                 qlog string,
-                FOREIGN KEY (measurement_id) REFERENCES measurements(id)
+                FOREIGN KEY (measurement_id) REFERENCES measurements(msm_id)
             );
             """
     )
     db.commit()
 
 
-def insert_performance(page, performance, timestamp, cache_warming=0, error=""):
+def create_measurements_table():
+    cursor.execute(
+        """
+            CREATE TABLE IF NOT EXISTS measurements (
+                msm_id string,
+                py_time datetime,
+                js_time datetime,
+                resource_timing_timestamp datetime,
+                protocol string,
+                server string,
+                domain string,
+                vantagePoint string,
+                timestamp datetime,
+                cacheWarming integer,
+                error string,
+                PRIMARY KEY (msm_id)
+            );
+            """
+    )
+    db.commit()
+
+
+def insert_measurement(msm_id, py_time, js_time, resource_timing_timestamp, page, timestamp, error, cache_warming=0):
+    cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?, ?);", (msm_id, py_time, js_time,
+                   resource_timing_timestamp, protocol, server, page, vantage_point, timestamp, cache_warming, error))
+    db.commit()
+
+
+def insert_event(page, performance, timestamp, msm_id, cache_warming=0):
     performance["protocol"] = protocol
     performance["server"] = server
     performance["domain"] = page
     performance["timestamp"] = timestamp
     performance["cacheWarming"] = cache_warming
-    performance["error"] = error
     performance["vantagePoint"] = vantage_point
+    performance["msm_id"] = msm_id
     # generate unique ID
     sha = hashlib.md5()
     if performance["event_type"] == 0:
@@ -643,17 +734,80 @@ def insert_performance(page, performance, timestamp, cache_warming=0, error=""):
     # insert into database
     cursor.execute(
         f"""
-    INSERT INTO measurements VALUES ({(len(measurement_elements) - 1) * '?,'}?);
+    INSERT INTO iframe_api VALUES ({(len(measurement_elements_iframe_api) - 1) * '?,'}?);
     """,
-        tuple([performance[m_e] for m_e in measurement_elements]),
+        tuple([performance[m_e] for m_e in measurement_elements_iframe_api]),
     )
     db.commit()
 
-    if protocol == "quic":
-        insert_qlogs(str(uid))
-    # insert all domain lookups into second table
-    if error == "" and proxyPID != 0:
-        insert_lookups(str(uid))
+
+def insert_nerdstats(page, performance, timestamp, msm_id, cache_warming=0):
+    performance["protocol"] = protocol
+    performance["server"] = server
+    performance["domain"] = page
+    performance["timestamp"] = timestamp
+    performance["cacheWarming"] = cache_warming
+    performance["vantagePoint"] = vantage_point
+    performance["msm_id"] = msm_id
+    # generate unique ID
+    sha = hashlib.md5()
+    sha_input = (
+        ""
+        + protocol
+        + server
+        + page
+        + str(cache_warming)
+        + vantage_point
+        + str(performance["time"])
+        + str(performance["curr_play_time"])
+    )
+    sha.update(sha_input.encode())
+    uid = uuid.UUID(sha.hexdigest())
+    performance["id"] = str(uid)
+
+    # insert into database
+    cursor.execute(
+        f"""
+    INSERT INTO nerd_stats VALUES ({(len(measurement_elements_nerd_stats) - 1) * '?,'}?);
+    """,
+        tuple([performance[m_e] for m_e in measurement_elements_nerd_stats]),
+    )
+    db.commit()
+
+
+def insert_resources(page, performance, timestamp, msm_id, cache_warming=0):
+    performance["protocol"] = protocol
+    performance["server"] = server
+    performance["domain"] = page
+    performance["timestamp"] = timestamp
+    performance["cacheWarming"] = cache_warming
+    performance["vantagePoint"] = vantage_point
+    performance["msm_id"] = msm_id
+    # generate unique ID
+    sha = hashlib.md5()
+    sha_input = (
+        ""
+        + protocol
+        + server
+        + page
+        + str(cache_warming)
+        + vantage_point
+        + str(performance["requestStart"])
+        + performance["name"]
+    )
+    sha.update(sha_input.encode())
+    uid = uuid.UUID(sha.hexdigest())
+    performance["id"] = str(uid)
+
+    # insert into database
+    cursor.execute(
+        f"""
+    INSERT INTO page_resources VALUES ({(len(measurement_elements_resouce_timing) - 1) * '?,'}?);
+    """,
+        tuple([performance[m_e]
+              for m_e in measurement_elements_resouce_timing]),
+    )
+    db.commit()
 
 
 def insert_qlogs(uid):
@@ -746,6 +900,9 @@ def insert_lookups(uid):
 
 
 create_measurements_table()
+create_iframe_api_table()
+create_nerd_stats_table()
+create_page_resources_table()
 create_lookups_table()
 create_qlogs_table()
 for p in pages:
