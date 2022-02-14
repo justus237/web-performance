@@ -15,10 +15,13 @@ import os
 dnsproxy_dir = "/home/ubuntu/dnsproxy/"
 # download top list
 t = Tranco(cache=True, cache_dir='.tranco')
-tranco_list = t.list(date='2021-10-18')
-pages = tranco_list.top(13)
+tranco_list = t.list(date='2022-02-01')
+pages = tranco_list.top(11)
 # this specific Chinese page often has problems loading with our setup, so we will just remove it
-pages.remove('qq.com')
+#pages.remove('qq.com')
+# avoid initial redirects (not necessary for twitter)
+pages = [f'www.{page}' for page in pages]
+pages[pages.index('www.twitter.com')] = 'twitter.com'
 
 # performance elements to extract
 measurement_elements = (
@@ -26,7 +29,7 @@ measurement_elements = (
     'domContentLoadedEventEnd', 'domContentLoadedEventStart', 'domInteractive', 'domainLookupEnd', 'domainLookupStart',
     'duration', 'encodedBodySize', 'decodedBodySize', 'transferSize', 'fetchStart', 'loadEventEnd', 'loadEventStart',
     'requestStart', 'responseEnd', 'responseStart', 'secureConnectionStart', 'startTime', 'firstPaint',
-    'firstContentfulPaint', 'nextHopProtocol', 'cacheWarming', 'error')
+    'firstContentfulPaint', 'nextHopProtocol', 'cacheWarming', 'error', 'redirectStart', 'redirectEnd', 'redirectCount')
 
 # create db
 db = sqlite3.connect('web-performance.db')
@@ -158,6 +161,9 @@ def create_measurements_table():
             nextHopProtocol string,
             cacheWarming integer,
             error string,
+            redirectStart integer,
+            redirectEnd integer,
+            redirectCount integer,
             PRIMARY KEY (id)
         );
         """)
