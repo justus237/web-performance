@@ -256,12 +256,13 @@ class video_element_has_duration_attribute(object):
 
     def __call__(self, driver):
         # Finding the referenced element
+        resources = []
         try:
-            print(driver.execute_script(
-                'return performance.getEntriesByType("resource").length;'))
+            resources.extend(driver.execute_script(
+                'return performance.getEntriesByType("resource");'))
             element = driver.find_element(By.TAG_NAME, "video")
             if element.get_attribute("duration") != "NaN":
-                return element.get_attribute("duration")
+                return element.get_attribute("duration"), resources
             else:
                 return False
         except Exception as e:
@@ -278,18 +279,15 @@ def load_youtube(
     video_id="YE7VzlLtp-4",
 ):
     # https://stackoverflow.com/a/58068828
-    script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "nerdstats": document.getElementById("movie_player").getStatsForNerds()};'
+    script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "nerdstats": arguments[0].getStatsForNerds()};'
 
     script_get_movie_player_playback_time = (
-        'return document.getElementById("movie_player").getMediaReferenceTime();'
+        'return arguments[0].getMediaReferenceTime();'
     )
 
     # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
     script_get_video_duration = "return getVideoDuration();"
-    script_get_video_ended = """
-        video = document.getElementsByTagName("video")[0];
-        return video.ended;
-    """
+    script_get_video_ended = 'return arguments[0].ended;'
 
     script_get_video_buffered_wrong = 'video = document.getElementsByTagName("video")[0]; return video.buffered.end(0) - video.buffered.start(0);'
     # https://github.com/lsinfo3/yomo-docker/blob/master/files/pluginAsJSFormated.js
@@ -340,7 +338,7 @@ def load_youtube(
                 print("switching to yt iframe")
                 driver.switch_to.frame(youtube_player_iframe)
 
-                # TODO:look up whether the time resolution of date now and performance now are the same in chrome (they should be in firefox)
+                # https://www.w3.org/TR/hr-time-2/
                 resource_time_start_adjusted_timestamp = driver.execute_script(
                     'return performance.timeOrigin;')
                 resource_timings = [resource_time_start_adjusted_timestamp]
@@ -355,7 +353,7 @@ def load_youtube(
                 # print(driver.execute_script(script_get_resource_timing))
                 # driver.switch_to.frame('player')
                 # driver.switch_to.default_content()
-                ###driver.find_element(By.TAG_NAME, "video").get_attribute("src")
+                # driver.find_element(By.TAG_NAME, "video").get_attribute("src")
 
                 tmp_timings = driver.execute_script(script_get_resource_timing)
                 if len(tmp_timings) > last_len_resource_timings_buffer:
@@ -366,7 +364,7 @@ def load_youtube(
                 # this wait also results in script_get_video_buffered running without crashing selenium
                 # this also clears the resource timing buffer for some reason
                 wait = WebDriverWait(driver, 3)
-                video_duration_seconds = wait.until(
+                video_duration_seconds, resources_from_waiting_for_video = wait.until(
                     video_element_has_duration_attribute()
                 )
                 tmp_timings = driver.execute_script(script_get_resource_timing)
@@ -381,6 +379,12 @@ def load_youtube(
                 if play_duration_seconds <= 0:
                     play_duration_seconds = int(
                         float(video_duration_seconds)) + 20
+
+                # get movie player element in selenium to pass into execute script calls
+                nerd_stats_movie_player = driver.find_element(By.ID, "movie_player")
+                html_video_player = driver.find_element(By.TAG_NAME, "video")
+
+                #logging loop until the measurement is finished
                 while play_duration_seconds >= 0:
                     if buffer_was_reset == False:
                         tmp_timings = driver.execute_script(
@@ -395,9 +399,9 @@ def load_youtube(
                             buffer_was_reset = True
                     print("fetching nerdstats, estimated remaining seconds " +
                           str(play_duration_seconds))
-                    nerdstats = driver.execute_script(script_get_nerdstats)
+                    nerdstats = driver.execute_script(script_get_nerdstats, nerd_stats_movie_player)
                     nerdstats["media_reference_time"] = driver.execute_script(
-                        script_get_movie_player_playback_time
+                        script_get_movie_player_playback_time, nerd_stats_movie_player
                     )
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
@@ -410,13 +414,14 @@ def load_youtube(
                     nerdstats_log.append(nerdstats)
                     # print(driver.execute_script(script_get_nerdstats_buffer))
                     # print(driver.execute_script(script_get_video_buffered))
-                    if driver.execute_script(script_get_video_ended):
+                    if driver.execute_script(script_get_video_ended, html_video_player):
                         break
                     play_duration_seconds = play_duration_seconds - 0.5
                     time.sleep(0.5)
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
-                print(len(resource_timings))
+                resource_timings.extend(resources_from_waiting_for_video)
+                
                 time_sync_py = time.time_ns()
                 time_sync_js = driver.execute_script("return performance.now() + performance.timeOrigin;")
                 driver.switch_to.default_content()
@@ -427,6 +432,7 @@ def load_youtube(
             except selenium.common.exceptions.WebDriverException as e:
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
+                print(str(e))
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
                         [], [], -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
