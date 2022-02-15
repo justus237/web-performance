@@ -30,7 +30,7 @@
                 width: '640',
                 //videoId: 'aqz-KE-bpKQ',
                 //set mute to 1 when testing in a browser that doesn't have chrome's auto play policy disabled
-                playerVars: { 'mute': 0},//, 'autoplay': 1},
+                playerVars: { 'mute': 0 },//, 'autoplay': 1},
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
@@ -187,16 +187,16 @@
             if (playerIsReady) {
                 player.playVideo();
                 isLogging = true;
-                videoDur = player.getDuration()
-                eventLog.push({ "event_type": "PlayStartedFromFunction", "time": currentTime, "video_dur": videoDur })
-                loggingIntervalID = setInterval(logBuffer, 1000)
-                return true
+                videoDur = player.getDuration();
+                eventLog.push({ "event_type": "PlayStartedFromFunction", "time": currentTime, "video_dur": videoDur });
+                loggingIntervalID = setInterval(logBuffer, 1000);
+                return true;
             }
-            return false
+            return false;
         }
 
         function unMutePlayer() {
-            player.unMute()
+            player.unMute();
         }
 
         function getEventLog() {
@@ -204,28 +204,28 @@
         }
 
         function getPlayerQualities() {
-            return player.getAvailableQualityLevels()
+            return player.getAvailableQualityLevels();
         }
 
         function setPlayerSize(width, height) {
-            player.setSize(width, height)
+            player.setSize(width, height);
         }
 
         function setVideoAndPlayAndLog(videoId, startSeconds, suggestedQuality) {
             var currentTime = performance.now() + performance.timeOrigin;//Date.now();//Math.round(+new Date()/1000);
-            player.loadVideoById(videoId, startSeconds, suggestedQuality)
+            player.loadVideoById(videoId, startSeconds, suggestedQuality);
             isLogging = true;
-            videoDur = player.getDuration()
-            eventLog.push({ "event_type": "LoadVideoAndPlayStartedFromFunction", "time": currentTime, "video_dur": videoDur })
-            loggingIntervalID = setInterval(logBuffer, 1000)
+            videoDur = player.getDuration();
+            eventLog.push({ "event_type": "LoadVideoAndPlayStartedFromFunction", "time": currentTime, "video_dur": videoDur });
+            loggingIntervalID = setInterval(logBuffer, 1000);
         }
 
         function setVideo(videoId, startSeconds, suggestedQuality) {
-            player.cueVideoById(videoId, startSeconds, suggestedQuality)
+            player.cueVideoById(videoId, startSeconds, suggestedQuality);
         }
 
         function setPlayerQuality(suggestedQuality) {
-            player.setPlaybackQuality(suggestedQuality)
+            player.setPlaybackQuality(suggestedQuality);
         }
 
         function logBuffer() {
@@ -235,12 +235,12 @@
         }
 
         function getVideoDuration() {
-            return player.getDuration()
+            return player.getDuration();
         }
 
         function getBufferSecondsApprox() {
             //https://stackoverflow.com/a/58068828
-            return player.getVideoLoadedFraction() * player.getDuration() - player.getCurrentTime()
+            return player.getVideoLoadedFraction() * player.getDuration() - player.getCurrentTime();
         }
 
         function getEventLog() {
