@@ -278,11 +278,7 @@ def load_youtube(
     video_id="YE7VzlLtp-4",
 ):
     # https://stackoverflow.com/a/58068828
-    script_get_nerdstats = """
-        var currentTime = performance.now() + performance.timeOrigin;//Date.now()
-        iframe_player = document.getElementById("movie_player");
-        return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
-        """
+    script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "nerdstats": document.getElementById("movie_player").getStatsForNerds()};'
 
     script_get_movie_player_playback_time = (
         'return document.getElementById("movie_player").getMediaReferenceTime();'
@@ -467,7 +463,7 @@ def perform_page_load(page, cache_warming=0):
     # generate unique ID for the overall measurement
     sha = hashlib.md5()
     sha_input = ('' + protocol + server + page + str(cache_warming) +
-                 vantage_point + timestamp.strftime("%H:%d"))
+                 vantage_point + timestamp.strftime("%y-%m-%d-%H:%M:%S"))
     sha.update(sha_input.encode())
     uid = uuid.UUID(sha.hexdigest())
     if protocol == "quic":
