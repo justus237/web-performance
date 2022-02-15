@@ -279,8 +279,8 @@ def load_youtube(
 ):
     # https://stackoverflow.com/a/58068828
     script_get_nerdstats = """
-        var currentTime = Date.now()
-        iframe_player = document.getElementById("movie_player")
+        var currentTime = performance.now() + performance.timeOrigin;//Date.now()
+        iframe_player = document.getElementById("movie_player");
         return {"time":currentTime, "nerdstats":iframe_player.getStatsForNerds()};
         """
 
@@ -289,10 +289,10 @@ def load_youtube(
     )
 
     # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
-    script_get_video_duration = "return getVideoDuration()"
+    script_get_video_duration = "return getVideoDuration();"
     script_get_video_ended = """
         video = document.getElementsByTagName("video")[0];
-        return video.ended
+        return video.ended;
     """
 
     script_get_video_buffered_wrong = 'video = document.getElementsByTagName("video")[0]; return video.buffered.end(0) - video.buffered.start(0);'
@@ -346,7 +346,7 @@ def load_youtube(
 
                 # TODO:look up whether the time resolution of date now and performance now are the same in chrome (they should be in firefox)
                 resource_time_start_adjusted_timestamp = driver.execute_script(
-                    'return Date.now()-performance.now();')
+                    'return performance.timeOrigin;')
                 resource_timings = [resource_time_start_adjusted_timestamp]
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
@@ -422,7 +422,7 @@ def load_youtube(
                     driver.execute_script(script_get_resource_timing))
                 print(len(resource_timings))
                 time_sync_py = time.time_ns()
-                time_sync_js = driver.execute_script("return Date.now();")
+                time_sync_js = driver.execute_script("return performance.now() + performance.timeOrigin;")
                 driver.switch_to.default_content()
                 print("switched out of iframe")
                 event_log = driver.execute_script("return getEventLog();")
@@ -481,10 +481,10 @@ def perform_page_load(page, cache_warming=0):
     if "error" in event_log[0]:
         error = event_log[0]["error"]
 
-    resource_timing_timestamp = resource_timings.pop(0)
+    resource_time_origin = resource_timings.pop(0)
 
     insert_measurement(str(uid), time_sync_py, time_sync_js,
-                       resource_timing_timestamp, page, timestamp, error, cache_warming)
+                       resource_time_origin, page, timestamp, error, cache_warming)
 
     if "error" not in event_log[0]:
         # youtube iframe api event log
@@ -684,7 +684,7 @@ def create_measurements_table():
                 msm_id string,
                 py_time datetime,
                 js_time datetime,
-                resource_timing_timestamp datetime,
+                resource_time_origin datetime,
                 protocol string,
                 server string,
                 domain string,
@@ -699,9 +699,9 @@ def create_measurements_table():
     db.commit()
 
 
-def insert_measurement(msm_id, py_time, js_time, resource_timing_timestamp, page, timestamp, error, cache_warming=0):
+def insert_measurement(msm_id, py_time, js_time, resource_time_origin, page, timestamp, error, cache_warming=0):
     cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?, ?);", (msm_id, py_time, js_time,
-                   resource_timing_timestamp, protocol, server, page, vantage_point, timestamp, cache_warming, error))
+                   resource_time_origin, protocol, server, page, vantage_point, timestamp, cache_warming, error))
     db.commit()
 
 
