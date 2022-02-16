@@ -201,7 +201,7 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 # avoid having to start the video muted due to chrome autoplay policies
 chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
 #doesnt work...
-chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
+#chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
 
 
 def create_driver():
@@ -211,6 +211,8 @@ def create_driver():
             options=chrome_options
         )
     else:
+        firefox_options = firefoxOptions()
+        firefox_options.add_argument('--headless')
         return webdriver.Firefox(options=firefox_options)
 
 
