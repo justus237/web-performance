@@ -25,9 +25,9 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 
-declare -a protocols=("udp" "quic")
-declare -a framesizes=("256 144" "426 240" "640 360" "854 480" "1280 720" "1920 1080" "2560 1440" "3840 2160")
-declare -a qualities=("auto" "tiny" "small" "medium" "large" "hd720" "hd1080" "highres" "hd1440" "hd2160")
+declare -a protocols=("udp")
+declare -a framesizes=("640 360" "1920 1080" "3840 2160")
+declare -a qualities=("auto" "medium" "hd1080" "hd2160")
 declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
 
 while read upstream; do
