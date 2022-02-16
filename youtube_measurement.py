@@ -29,12 +29,6 @@ pages = ["aqz-KE-bpKQ"]
 
 # performance elements to extract
 measurement_elements_iframe_api = (
-    "id",
-    "protocol",
-    "server",
-    "domain",
-    "vantagePoint",
-    "timestamp",
     "time",
     "event_type",
     "buffer_perc",
@@ -42,7 +36,6 @@ measurement_elements_iframe_api = (
     "video_dur",
     "current_quality",
     "available_qualities",
-    "cacheWarming",
     "msm_id"
 )
 
@@ -59,12 +52,6 @@ iframe_api_elements = {
 
 
 measurement_elements_nerd_stats = (
-    "id",
-    "protocol",
-    "server",
-    "domain",
-    "vantagePoint",
-    "timestamp",
     "time",
     "curr_play_time",
     "bandwidth_kbps",
@@ -73,17 +60,10 @@ measurement_elements_nerd_stats = (
     "dims_and_frames",
     "resolution",
     "network_activity_bytes",
-    "cacheWarming",
     "msm_id"
 )
 
 nerd_stats_elements = {
-    "id": "string",
-    "protocol": "string",
-    "server": "string",
-    "domain": "string",
-    "vantagePoint": "string",
-    "timestamp": "datetime",
     "time": "float",
     'curr_play_time': "string",
     "bandwidth_kbps": "string",
@@ -92,18 +72,11 @@ nerd_stats_elements = {
     "dims_and_frames": "string",
     "resolution": "string",
     "network_activity_bytes": "string",
-    "cacheWarming": "int",
     "msm_id": "string"
 }
 
 
 measurement_elements_resouce_timing = (
-    "id",
-    "protocol",
-    "server",
-    "domain",
-    "vantagePoint",
-    "timestamp",
     'connectEnd',
     'connectStart',
     'decodedBodySize',
@@ -122,17 +95,10 @@ measurement_elements_resouce_timing = (
     'secureConnectionStart',
     'startTime',
     'transferSize',
-    "cacheWarming",
     "msm_id"
 )
 
 resource_timing_elements = {
-    "id": "string",
-    "protocol": "string",
-    "server": "string",
-    "domain": "string",
-    "vantagePoint": "string",
-    "timestamp": "datetime",
     'connectEnd': 'float',
     'connectStart': 'float',
     'decodedBodySize': 'int',
@@ -156,7 +122,6 @@ resource_timing_elements = {
     'transferSize': 'int',
     #    'workerStart': 'int',
     #    'workerTiming': 'list'
-    "cacheWarming": "int",
     "msm_id": "string"
 }
 
@@ -214,7 +179,7 @@ try:
     print(pages)
 except IndexError:
     print(
-        'Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point, \niframe width, iframe height, \nsuggested video quality (e.g. "auto"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play'
+        'Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point (any string, cannot be empty), \niframe width, iframe height, \nsuggested video quality (e.g. "auto"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play'
     )
     sys.exit(1)
 
@@ -235,6 +200,8 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 # chrome_options.add_argument("--allow-file-access-from-files")
 # avoid having to start the video muted due to chrome autoplay policies
 chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+#doesnt work...
+chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
 
 
 def create_driver():
@@ -503,17 +470,14 @@ def perform_page_load(page, cache_warming=0):
                     if typelookup == "int":
                         event[key] = -1
             event["available_qualities"] = str(event["available_qualities"])
-            insert_event(page, event, timestamp, str(
-                uid), cache_warming=cache_warming)
+            insert_event(event, str(uid))
 
         # nerd stats logging
         for item in parse_nerd_stats(nerd_stats):
-            insert_nerdstats(page, item, timestamp, str(uid),
-                             cache_warming=cache_warming)
+            insert_nerdstats(item, str(uid))
 
         for item in parse_resource_timings(resource_timings):
-            insert_resources(page, item, timestamp, str(uid),
-                             cache_warming=cache_warming)
+            insert_resources(item, str(uid))
 
     # send restart signal to dnsProxy after loading the page
     if proxyPID != 0:
@@ -564,12 +528,6 @@ def create_iframe_api_table():
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS iframe_api (
-            id string,
-            protocol string,
-            server string,
-            domain string,
-            vantagePoint string,
-            timestamp datetime,
             time double,
             event_type string,
             buffer_perc double,
@@ -577,9 +535,8 @@ def create_iframe_api_table():
             video_dur double,
             current_quality string,
             available_qualities string,
-            cacheWarming integer,
             msm_id string,
-            PRIMARY KEY (id)
+            FOREIGN KEY (msm_id) REFERENCES measurements(msm_id)
         );
         """
     )
@@ -590,12 +547,6 @@ def create_nerd_stats_table():
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS nerd_stats (
-            id string,
-            protocol string,
-            server string,
-            domain string,
-            vantagePoint string,
-            timestamp datetime,
             time double,
             curr_play_time string,
             bandwidth_kbps string,
@@ -604,9 +555,8 @@ def create_nerd_stats_table():
             dims_and_frames string,
             resolution string,
             network_activity_bytes string,
-            cacheWarming integer,
             msm_id string,
-            PRIMARY KEY (id)
+            FOREIGN KEY (msm_id) REFERENCES measurements(msm_id)
         );
         """
     )
@@ -617,33 +567,26 @@ def create_page_resources_table():
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS page_resources (
-            id string,
-            protocol string,
-            server string,
-            domain string,
-            vantagePoint string,
-            timestamp datetime,
             connectEnd double,
             connectStart double,
-            decodedBodySize int,
+            decodedBodySize integer,
             domainLookupEnd double,
             domainLookupStart double,
             duration float,
-            encodedBodySize int, 
-            entryType str,
+            encodedBodySize integer, 
+            entryType string,
             fetchStart double,
-            initiatorType str,
-            name str,
-            nextHopProtocol str,
+            initiatorType string,
+            name string,
+            nextHopProtocol string,
             requestStart double,
             responseEnd double,
             responseStart double,
             secureConnectionStart double,
             startTime double,
-            transferSize int,
-            cacheWarming integer,
+            transferSize integer,
             msm_id string,
-            PRIMARY KEY (id)
+            FOREIGN KEY (msm_id) REFERENCES measurements(msm_id)
         );
         """
     )
@@ -692,6 +635,12 @@ def create_measurements_table():
                 domain string,
                 vantagePoint string,
                 timestamp datetime,
+                suggested_quality string,
+                player_width integer,
+                player_height integer,
+                start_time integer,
+                play_time integer,
+                video_ids string,
                 cacheWarming integer,
                 error string,
                 PRIMARY KEY (msm_id)
@@ -702,36 +651,13 @@ def create_measurements_table():
 
 
 def insert_measurement(msm_id, py_time, js_time, resource_time_origin, page, timestamp, error, cache_warming=0):
-    cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?, ?);", (msm_id, py_time, js_time,
-                   resource_time_origin, protocol, server, page, vantage_point, timestamp, cache_warming, error))
+    cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);", (msm_id, py_time, js_time,
+                   resource_time_origin, protocol, server, page, vantage_point, timestamp, suggested_quality, width, height, start_seconds, play_duration_seconds, ", ".join(pages), cache_warming, error))
     db.commit()
 
 
-def insert_event(page, performance, timestamp, msm_id, cache_warming=0):
-    performance["protocol"] = protocol
-    performance["server"] = server
-    performance["domain"] = page
-    performance["timestamp"] = timestamp
-    performance["cacheWarming"] = cache_warming
-    performance["vantagePoint"] = vantage_point
+def insert_event(performance, msm_id):
     performance["msm_id"] = msm_id
-    # generate unique ID
-    sha = hashlib.md5()
-    if performance["event_type"] == 0:
-        performance["event_type"] = "selenium_error"
-    sha_input = (
-        ""
-        + protocol
-        + server
-        + page
-        + str(cache_warming)
-        + vantage_point
-        + str(performance["time"])
-        + performance["event_type"]
-    )
-    sha.update(sha_input.encode())
-    uid = uuid.UUID(sha.hexdigest())
-    performance["id"] = str(uid)
 
     # insert into database
     cursor.execute(
@@ -743,29 +669,8 @@ def insert_event(page, performance, timestamp, msm_id, cache_warming=0):
     db.commit()
 
 
-def insert_nerdstats(page, performance, timestamp, msm_id, cache_warming=0):
-    performance["protocol"] = protocol
-    performance["server"] = server
-    performance["domain"] = page
-    performance["timestamp"] = timestamp
-    performance["cacheWarming"] = cache_warming
-    performance["vantagePoint"] = vantage_point
+def insert_nerdstats(performance, msm_id):
     performance["msm_id"] = msm_id
-    # generate unique ID
-    sha = hashlib.md5()
-    sha_input = (
-        ""
-        + protocol
-        + server
-        + page
-        + str(cache_warming)
-        + vantage_point
-        + str(performance["time"])
-        + str(performance["curr_play_time"])
-    )
-    sha.update(sha_input.encode())
-    uid = uuid.UUID(sha.hexdigest())
-    performance["id"] = str(uid)
 
     # insert into database
     cursor.execute(
@@ -777,29 +682,8 @@ def insert_nerdstats(page, performance, timestamp, msm_id, cache_warming=0):
     db.commit()
 
 
-def insert_resources(page, performance, timestamp, msm_id, cache_warming=0):
-    performance["protocol"] = protocol
-    performance["server"] = server
-    performance["domain"] = page
-    performance["timestamp"] = timestamp
-    performance["cacheWarming"] = cache_warming
-    performance["vantagePoint"] = vantage_point
+def insert_resources(performance, msm_id):
     performance["msm_id"] = msm_id
-    # generate unique ID
-    sha = hashlib.md5()
-    sha_input = (
-        ""
-        + protocol
-        + server
-        + page
-        + str(cache_warming)
-        + vantage_point
-        + str(performance["requestStart"])
-        + performance["name"]
-    )
-    sha.update(sha_input.encode())
-    uid = uuid.UUID(sha.hexdigest())
-    performance["id"] = str(uid)
 
     # insert into database
     cursor.execute(
