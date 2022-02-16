@@ -327,8 +327,8 @@ def load_youtube(
                 tmp_timings = driver.execute_script(script_get_resource_timing)
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
-                    print(
-                        'timings api returned more resources after setting buffer size: '+str(len(tmp_timings)))
+                    #print(
+                    #    'timings api returned more resources after setting buffer size: '+str(len(tmp_timings)))
                     last_len_resource_timings_buffer = len(tmp_timings)
                 # this wait also results in script_get_video_buffered running without crashing selenium
                 # this also clears the resource timing buffer for some reason
@@ -339,11 +339,11 @@ def load_youtube(
                 tmp_timings = driver.execute_script(script_get_resource_timing)
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
-                    print(
-                        'timings api returned more resources after waiting for video element to have a duration: '+str(len(tmp_timings)))
+                    #print(
+                    #    'timings api returned more resources after waiting for video element to have a duration: '+str(len(tmp_timings)))
                     last_len_resource_timings_buffer = len(tmp_timings)
                 if len(tmp_timings) < last_len_resource_timings_buffer:
-                    print('buffer was reset')
+                    #print('buffer was reset')
                     buffer_was_reset = True
                 if play_duration_seconds <= 0:
                     play_duration_seconds = int(
@@ -360,21 +360,21 @@ def load_youtube(
                             script_get_resource_timing)
                         if len(tmp_timings) > last_len_resource_timings_buffer:
                             resource_timings.extend(tmp_timings)
-                            print(
-                                'timings api returned more resources inside logging loop: '+str(len(tmp_timings)))
+                            #print(
+                            #    'timings api returned more resources inside logging loop: '+str(len(tmp_timings)))
                             last_len_resource_timings_buffer = len(tmp_timings)
                         if len(tmp_timings) < last_len_resource_timings_buffer:
-                            print('buffer was reset')
+                            #print('buffer was reset')
                             buffer_was_reset = True
-                    print("fetching nerdstats, estimated remaining seconds " +
-                          str(play_duration_seconds))
+                    #print("fetching nerdstats, estimated remaining seconds " +
+                    #      str(play_duration_seconds))
                     nerdstats = driver.execute_script(script_get_nerdstats, nerd_stats_movie_player)
                     nerdstats["media_reference_time"] = driver.execute_script(
                         script_get_movie_player_playback_time, nerd_stats_movie_player
                     )
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
-                    print(str(resource_timings_buffer) + " resources timed")
+                    #print(str(resource_timings_buffer) + " resources timed")
                     if resource_timings_buffer >= (resource_timings_buffer_limit - 50):
                         resource_timings_buffer_limit = resource_timings_buffer_limit + 100
                         driver.execute_script(
@@ -451,8 +451,11 @@ def perform_page_load(page, cache_warming=0):
     error = ""
     if "error" in event_log[0]:
         error = event_log[0]["error"]
-
-    resource_time_origin = resource_timings.pop(0)
+    resource_time_origin = -1
+    try:
+        resource_time_origin = resource_timings.pop(0)
+    except Exception as e:
+        print(str(e))
 
     insert_measurement(str(uid), time_sync_py, time_sync_js,
                        resource_time_origin, page, timestamp, error, cache_warming)
