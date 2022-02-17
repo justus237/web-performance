@@ -248,11 +248,9 @@ def load_youtube(
     video_id="YE7VzlLtp-4",
 ):
     # https://stackoverflow.com/a/58068828
-    script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "nerdstats": arguments[0].getStatsForNerds()};'
+    script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "media_reference_time": arguments[0].getMediaReferenceTime(), "nerdstats": arguments[0].getStatsForNerds()};'
 
-    script_get_movie_player_playback_time = (
-        'return arguments[0].getMediaReferenceTime();'
-    )
+
 
     # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
     script_get_video_duration = "return getVideoDuration();"
@@ -369,9 +367,7 @@ def load_youtube(
                     #print("fetching nerdstats, estimated remaining seconds " +
                     #      str(play_duration_seconds))
                     nerdstats = driver.execute_script(script_get_nerdstats, nerd_stats_movie_player)
-                    nerdstats["media_reference_time"] = driver.execute_script(
-                        script_get_movie_player_playback_time, nerd_stats_movie_player
-                    )
+                    
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
                     #print(str(resource_timings_buffer) + " resources timed")
