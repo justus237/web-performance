@@ -353,7 +353,7 @@ def load_youtube(
                 html_video_player = driver.find_element(By.TAG_NAME, "video")
 
                 #logging loop until the measurement is finished
-                while play_duration_seconds >= 0:
+                while play_duration_seconds >= 1:
                     if buffer_was_reset == False:
                         tmp_timings = driver.execute_script(
                             script_get_resource_timing)
