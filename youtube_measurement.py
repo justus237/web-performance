@@ -290,14 +290,15 @@ def load_youtube(
             youtube_player_iframe = wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
+            time.sleep(1)
             driver.execute_script(f"setPlayerSize({fwidth},{fheight});")
             driver.execute_script(
                 f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");'
             )
-            time.sleep(1)
-            yt_iframe_api_video_duration_sec = driver.execute_script(
-                script_get_video_duration
-            )
+            time.sleep(0.5)
+            #yt_iframe_api_video_duration_sec = driver.execute_script(
+            #    script_get_video_duration
+            #)
             # either start video here or later, either way we appear to be missing the initial buffer in the resource timing api
             driver.execute_script("startVideoAndLog()")
             # youtube_player_iframe = driver.find_element(By.ID, 'player')
@@ -308,7 +309,7 @@ def load_youtube(
                 # https://www.w3.org/TR/hr-time-2/
                 resource_time_start_adjusted_timestamp = driver.execute_script(
                     'return performance.timeOrigin;')
-                resource_timings = [resource_time_start_adjusted_timestamp]
+                resource_timings = []#[resource_time_start_adjusted_timestamp]
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
                 last_len_resource_timings_buffer = len(resource_timings)-1
@@ -367,7 +368,7 @@ def load_youtube(
                     #print("fetching nerdstats, estimated remaining seconds " +
                     #      str(play_duration_seconds))
                     nerdstats = driver.execute_script(script_get_nerdstats, nerd_stats_movie_player)
-                    
+
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
                     #print(str(resource_timings_buffer) + " resources timed")
@@ -393,20 +394,20 @@ def load_youtube(
                 print("switched out of iframe")
                 event_log = driver.execute_script("return getEventLog();")
                 ###driver.execute_script('return window.eventLog')
-                return (event_log, nerdstats_log, resource_timings, time_sync_py, time_sync_js)
+                return (event_log, nerdstats_log, resource_timings, time_sync_py, time_sync_js, resource_time_start_adjusted_timestamp)
             except selenium.common.exceptions.WebDriverException as e:
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
                 print(str(e))
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
-                        [], [], -1, -1)
+                        [], [], -1, -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
-            return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1)
+            return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
         print(str(e))
-        return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1)
+        return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1, -1)
 
 
 def perform_page_load(page, cache_warming=0):
@@ -416,11 +417,11 @@ def perform_page_load(page, cache_warming=0):
     # performance_metrics = get_page_performance_metrics(driver, page)
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
-        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js = load_youtube(
+        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
             driver, play_duration_seconds=3, video_id=page
         )
     else:
-        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js = load_youtube(
+        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
             driver,
             fwidth=width,
             fheight=height,
@@ -447,11 +448,6 @@ def perform_page_load(page, cache_warming=0):
     error = ""
     if "error" in event_log[0]:
         error = event_log[0]["error"]
-    resource_time_origin = -1
-    try:
-        resource_time_origin = resource_timings.pop(0)
-    except Exception as e:
-        print(str(e))
 
     insert_measurement(str(uid), time_sync_py, time_sync_js,
                        resource_time_origin, page, timestamp, error, cache_warming)
