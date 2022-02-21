@@ -200,6 +200,7 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 # chrome_options.add_argument("--allow-file-access-from-files")
 # avoid having to start the video muted due to chrome autoplay policies
 chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+chrome_options.add_argument('--disable-http-cache')
 #doesnt work...
 #chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
 
@@ -418,7 +419,13 @@ def perform_page_load(page, cache_warming=0):
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
         event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
-            driver, play_duration_seconds=3, video_id=page
+            driver,
+            fwidth=width,
+            fheight=height,
+            suggested_quality=suggested_quality,
+            start_seconds=start_seconds,
+            play_duration_seconds=play_duration_seconds,
+            video_id=page,
         )
     else:
         event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(

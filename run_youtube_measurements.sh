@@ -4,7 +4,7 @@ if [[ $EUID -ne 0 ]]; then
     echo "$0 is not running as root. Try using sudo."
     exit 2
 fi
-
+SECONDS=0
 #if [[ $EUID -ne 0 ]]; then
 #    sudo "$0" "$@"
 #    exit $?
@@ -25,10 +25,9 @@ sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 
-declare -a protocols=("udp")
-declare -a framesizes=("640 360" "1920 1080" "3840 2160")
-declare -a qualities=("auto" "medium" "hd1080" "hd2160")
-declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
+declare -a protocols=("tls" "https" "quic" "tcp" "udp")
+declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
+declare -a videos=("aqz-KE-bpKQ")
 
 while read upstream; do
   # skip server if it is unreachable
@@ -58,26 +57,23 @@ while read upstream; do
 			fi
 
 			for framesize in "${framesizes[@]}"; do
-				for quality in "${qualities[@]}"; do
-
-					sleep 1
-					echo "starting dnsproxy"
-					./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.2" >& /home/ubuntu/web-performance/dnsproxy.log &
-					dnsproxyPID=$!
-			
-					# measurements
-					sleep 1
-					echo "starting measurement ${framesize},${quality},${videos[@]} over ${p} on ${upstream}"
-					cd /home/ubuntu/web-performance
-					#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
-					python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize $quality 0 30 ${videos[@]}
-			
-					sleep 1
-					echo "killing dnsproxy"
-					kill -SIGTERM $dnsproxyPID
-					rm dnsproxy.log
-					cd /home/ubuntu/dnsproxy
-				done
+				sleep 1
+				echo "starting dnsproxy"
+				./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.2" >& /home/ubuntu/web-performance/dnsproxy.log &
+				dnsproxyPID=$!
+		
+				# measurements
+				sleep 1
+				echo "starting measurement ${framesize},${quality},${videos[@]} over ${p} on ${upstream}"
+				cd /home/ubuntu/web-performance
+				#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
+				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize $quality 0 30 ${videos[@]}
+		
+				sleep 1
+				echo "killing dnsproxy"
+				kill -SIGTERM $dnsproxyPID
+				rm dnsproxy.log
+				cd /home/ubuntu/dnsproxy
 			done
 		done
 	else
@@ -89,5 +85,5 @@ done < /home/ubuntu/web-performance/servers.txt
 systemctl enable systemd-resolved
 systemctl start systemd-resolved
 
-date
-echo "FIN"
+ELAPSED="Elapsed: $(($SECONDS / 3600))hrs $((($SECONDS / 60) % 60))min $(($SECONDS % 60))sec"
+echo $ELAPSED
