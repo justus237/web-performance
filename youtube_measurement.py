@@ -142,7 +142,7 @@ relevant_resource_timing_keys = ['connectEnd', 'connectStart',
 
 
 # create db
-db = sqlite3.connect("web-performance.db")
+db = sqlite3.connect("web-performance-youtube.db")
 cursor = db.cursor()
 
 # retrieve input params
