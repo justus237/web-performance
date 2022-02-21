@@ -67,7 +67,7 @@ while read upstream; do
 				echo "starting measurement ${framesize},${quality},${videos[@]} over ${p} on ${upstream}"
 				cd /home/ubuntu/web-performance
 				#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
-				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize $quality 0 30 ${videos[@]}
+				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize auto 0 30 ${videos[@]}
 		
 				sleep 1
 				echo "killing dnsproxy"
