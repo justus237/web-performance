@@ -176,7 +176,6 @@ try:
     start_seconds = int(sys.argv[9])
     play_duration_seconds = int(sys.argv[10])
     pages = sys.argv[11:]
-    print(pages)
 except IndexError:
     print(
         'Input params incomplete, always required: \nprotocol, \nserver, \ndnsproxyPID (set to 0 if not using dnsproxy), \nbrowser (ignored, always chrome), \nvantage point (any string, cannot be empty), \niframe width, iframe height, \nsuggested video quality (e.g. "auto"), \nstart video at X seconds, \nplay Y seconds of video (negative for full playback), \nvideo IDs to play'
@@ -217,6 +216,7 @@ def create_driver():
         return webdriver.Firefox(options=firefox_options)
 
 
+#By default, WebDriverWait calls the ExpectedCondition every 500 milliseconds until it returns success.
 class video_element_has_duration_attribute(object):
     """An expectation for checking that a video element has a duration that is not NaN.
 
@@ -281,13 +281,13 @@ def load_youtube(
 
     nerdstats_log = []
     try:
-        driver.set_page_load_timeout(30)
+        driver.set_page_load_timeout(15)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
 
         try:
-            wait = WebDriverWait(driver, 10000)
+            wait = WebDriverWait(driver, 15)
             youtube_player_iframe = wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
@@ -400,10 +400,12 @@ def load_youtube(
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
                 print(str(e))
+                driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
                         [], [], -1, -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
+            driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
             return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
@@ -437,6 +439,8 @@ def perform_page_load(page, cache_warming=0):
             play_duration_seconds=play_duration_seconds,
             video_id=page,
         )
+    if "error" in event_log[0]:
+        driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
     driver.quit()
 
     # generate unique ID for the overall measurement

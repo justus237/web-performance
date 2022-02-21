@@ -18,8 +18,6 @@
         var currentQuality = 'unknown';
         var loggingIntervalID = -1;
         var eventLog = [];
-        var isBuffering = false;
-        var startedBufferingTimestamp = 0;
 
 
         // 3. This function creates an <iframe> (and YouTube player)
@@ -80,11 +78,6 @@
                 case YT.PlayerState.PLAYING:
                     //console.log("started playback");
                     eventLog.push({ "event_type": "PlayerStatePLAYING", "time": currentTime, "available_qualities": player.getAvailableQualityLevels(), "current_quality": player.getPlaybackQuality(), "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() });
-                    if (isBuffering) {
-                        eventLog.push({ "event_type": "PlayerSTALLTIME", "time": (startedBufferingTimestamp-currentTime)});
-                        isBuffering = false;
-                        startedBufferingTimestamp = 0;
-                    }
                     break;
                 case YT.PlayerState.ENDED:
                     clearInterval(loggingIntervalID);
@@ -96,8 +89,6 @@
                     eventLog.push({ "event_type": "PlayerStatePAUSED", "time": currentTime, "current_quality": player.getPlaybackQuality(), "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() });
                     break;
                 case YT.PlayerState.BUFFERING:
-                    isBuffering = true;
-                    startedBufferingTimestamp = currentTime;
                     //console.log("buffering");
                     eventLog.push({ "event_type": "PlayerStateBUFFERING", "time": currentTime, "current_quality": player.getPlaybackQuality(), "buffer_perc": player.getVideoLoadedFraction(), "curr_play_time": player.getCurrentTime() });
                     logBuffer()
