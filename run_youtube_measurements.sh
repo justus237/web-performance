@@ -64,7 +64,7 @@ while read upstream; do
 		
 				# measurements
 				sleep 1
-				echo "starting measurement ${framesize},${quality},${videos[@]} over ${p} on ${upstream}"
+				echo "starting measurement ${framesize}, auto, ${videos[@]} over ${p} on ${upstream}"
 				cd /home/ubuntu/web-performance
 				#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
 				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize auto 0 30 ${videos[@]}
@@ -85,5 +85,6 @@ done < /home/ubuntu/web-performance/servers.txt
 systemctl enable systemd-resolved
 systemctl start systemd-resolved
 
+date
 ELAPSED="Elapsed: $(($SECONDS / 3600))hrs $((($SECONDS / 60) % 60))min $(($SECONDS % 60))sec"
 echo $ELAPSED
