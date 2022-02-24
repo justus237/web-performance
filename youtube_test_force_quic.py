@@ -129,6 +129,9 @@ def load_youtube(
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
                     last_len_resource_timings_buffer = len(tmp_timings)
+                    print(
+                        'timings api returned more resources after setting buffer size: '+str(len(tmp_timings)))
+                    
                 # this wait also results in script_get_video_buffered running without crashing selenium
                 # this also clears the resource timing buffer for some reason
                 wait = WebDriverWait(driver, 3)
@@ -139,8 +142,12 @@ def load_youtube(
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
                     last_len_resource_timings_buffer = len(tmp_timings)
+                    print(
+                        'timings api returned more resources after setting buffer size: '+str(len(tmp_timings)))
+                    
                 if len(tmp_timings) < last_len_resource_timings_buffer:
                     buffer_was_reset = True
+                    print('buffer was reset')
                 if play_duration_seconds <= 0:
                     play_duration_seconds = int(
                         float(video_duration_seconds)) + 20
@@ -157,8 +164,12 @@ def load_youtube(
                         if len(tmp_timings) > last_len_resource_timings_buffer:
                             resource_timings.extend(tmp_timings)
                             last_len_resource_timings_buffer = len(tmp_timings)
+                            print(
+                                'timings api returned more resources inside logging loop: '+str(len(tmp_timings)))
+                            
                         if len(tmp_timings) < last_len_resource_timings_buffer:
                             buffer_was_reset = True
+                            print('buffer was reset')
 
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
