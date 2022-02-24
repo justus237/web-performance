@@ -68,7 +68,7 @@ class video_element_has_duration_attribute(object):
                 'return performance.getEntriesByType("resource");'))
             element = driver.find_element(By.TAG_NAME, "video")
             if element.get_attribute("duration") != "NaN":
-                print(resources[0])
+                print([timing for timing in resources if "googlevideo.com" in timing['name']][0])
                 return element.get_attribute("duration"), resources
             else:
                 return False
@@ -228,7 +228,7 @@ def perform_page_load(cache_warming=0):
 def parse_resource_timings(resource_timings):
     #resource_time_start_adjusted_timestamp = resource_timings.pop(0)
     # only look at resources that are actual video or audio requests
-    resource_timings = [timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
+    resource_timings = [timing for timing in resource_timings if "googlevideo.com" in timing['name']]
     # remove keys that are static or always empty
     resource_timings = [{k: v for k, v in timing_dict.items(
     ) if k in relevant_resource_timing_keys} for timing_dict in resource_timings]
