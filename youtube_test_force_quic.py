@@ -68,6 +68,7 @@ class video_element_has_duration_attribute(object):
                 'return performance.getEntriesByType("resource");'))
             element = driver.find_element(By.TAG_NAME, "video")
             if element.get_attribute("duration") != "NaN":
+                print(resources[0])
                 return element.get_attribute("duration"), resources
             else:
                 return False
@@ -234,6 +235,7 @@ def parse_resource_timings(resource_timings):
     # remove duplicates, all items inside the dicts should be hashable
     [dict(t) for t in {tuple(d.items()) for d in resource_timings}]
     print(set([item['nextHopProtocol'] for item in resource_timings]))
+    print(resource_timings[0])
     netlocs = []
     netlocs_h3 =[]
     netlocs_h1 = []
