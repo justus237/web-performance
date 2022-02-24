@@ -185,38 +185,47 @@ except IndexError:
 
 browser = "chrome"
 # Chrome options
-chrome_options = chromeOptions()
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument('--headless')
-chrome_options.add_argument("--disable-dev-shm-usage")
-# chrome_options.add_argument('--media-cache-size=2147483647') -> does not affect how much youtube pre-buffers
-# disable cross origin stuff that chrome imposes on us -- https://stackoverflow.com/questions/35432749/disable-web-security-in-chrome-48
-# iframes are super locked down and these don't actually do anything for accessin iframe specific things -- https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame
-# chrome_options.add_argument("--disable-site-isolation-trials")
-# chrome_options.add_argument("--user-data-dir=/tmp/temporary-chrome-profile-dir")
-# chrome_options.add_argument("--disable-features=IsolateOrigins,site-per-process")
-# chrome_options.add_argument("--disable-web-security")
-# chrome_options.add_argument("--allow-file-access-from-files")
-# avoid having to start the video muted due to chrome autoplay policies
-chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
-chrome_options.add_argument('--disable-http-cache')
-#doesnt work...
-#chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
+# chrome_options = chromeOptions()
+# chrome_options.add_argument("--no-sandbox")
+# chrome_options.add_argument('--headless')
+# chrome_options.add_argument("--disable-dev-shm-usage")
+# # chrome_options.add_argument('--media-cache-size=2147483647') -> does not affect how much youtube pre-buffers
+# # disable cross origin stuff that chrome imposes on us -- https://stackoverflow.com/questions/35432749/disable-web-security-in-chrome-48
+# # iframes are super locked down and these don't actually do anything for accessin iframe specific things -- https://stackoverflow.com/questions/25098021/securityerror-blocked-a-frame-with-origin-from-accessing-a-cross-origin-frame
+# # chrome_options.add_argument("--disable-site-isolation-trials")
+# # chrome_options.add_argument("--user-data-dir=/tmp/temporary-chrome-profile-dir")
+# # chrome_options.add_argument("--disable-features=IsolateOrigins,site-per-process")
+# # chrome_options.add_argument("--disable-web-security")
+# # chrome_options.add_argument("--allow-file-access-from-files")
+# # avoid having to start the video muted due to chrome autoplay policies
+# chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
+# chrome_options.add_argument('--disable-http-cache')
+# #doesnt work...
+# #chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
+
+google_video_url = ""
 
 
-def create_driver():
+def create_driver():#cacheWarming=0, google_video_url="googlevideo.com"):
     if browser == "chrome":
-        return webdriver.Chrome(
-            # , seleniumwire_options={"enable_har": True}
-            options=chrome_options
-        )
-    else:
-        firefox_options = firefoxOptions()
-        firefox_options.add_argument('--headless')
-        return webdriver.Firefox(options=firefox_options)
+        chrome_options = chromeOptions()
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument('--headless')
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument(
+            "--autoplay-policy=no-user-gesture-required")
+        chrome_options.add_argument('--disable-http-cache')
+        # force http/3 for the actual measurement
+        # otherwise the initial requests will be http/1.1
+        # could not get it working
+        # if cacheWarming == 0:
+        #     # comma separated list, doesnt accept wildcards, quotation marks required if more than one
+        #     chrome_options.add_argument(
+        #         '--origin-to-force-quic-on="'+google_video_url+'"')
+        return webdriver.Chrome(options=chrome_options)
 
 
-#By default, WebDriverWait calls the ExpectedCondition every 500 milliseconds until it returns success.
+# By default, WebDriverWait calls the ExpectedCondition every 500 milliseconds until it returns success.
 class video_element_has_duration_attribute(object):
     """An expectation for checking that a video element has a duration that is not NaN.
 
@@ -250,8 +259,6 @@ def load_youtube(
 ):
     # https://stackoverflow.com/a/58068828
     script_get_nerdstats = 'return {"time": (performance.now() + performance.timeOrigin), "media_reference_time": arguments[0].getMediaReferenceTime(), "nerdstats": arguments[0].getStatsForNerds()};'
-
-
 
     # 'video = document.getElementsByTagName("video")[0]; return video.duration;'
     script_get_video_duration = "return getVideoDuration();"
@@ -297,9 +304,9 @@ def load_youtube(
                 f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");'
             )
             time.sleep(0.5)
-            #yt_iframe_api_video_duration_sec = driver.execute_script(
+            # yt_iframe_api_video_duration_sec = driver.execute_script(
             #    script_get_video_duration
-            #)
+            # )
             # either start video here or later, either way we appear to be missing the initial buffer in the resource timing api
             driver.execute_script("startVideoAndLog()")
             # youtube_player_iframe = driver.find_element(By.ID, 'player')
@@ -310,7 +317,7 @@ def load_youtube(
                 # https://www.w3.org/TR/hr-time-2/
                 resource_time_start_adjusted_timestamp = driver.execute_script(
                     'return performance.timeOrigin;')
-                resource_timings = []#[resource_time_start_adjusted_timestamp]
+                resource_timings = []  # [resource_time_start_adjusted_timestamp]
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
                 last_len_resource_timings_buffer = len(resource_timings)-1
@@ -327,7 +334,7 @@ def load_youtube(
                 tmp_timings = driver.execute_script(script_get_resource_timing)
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
-                    #print(
+                    # print(
                     #    'timings api returned more resources after setting buffer size: '+str(len(tmp_timings)))
                     last_len_resource_timings_buffer = len(tmp_timings)
                 # this wait also results in script_get_video_buffered running without crashing selenium
@@ -339,7 +346,7 @@ def load_youtube(
                 tmp_timings = driver.execute_script(script_get_resource_timing)
                 if len(tmp_timings) > last_len_resource_timings_buffer:
                     resource_timings.extend(tmp_timings)
-                    #print(
+                    # print(
                     #    'timings api returned more resources after waiting for video element to have a duration: '+str(len(tmp_timings)))
                     last_len_resource_timings_buffer = len(tmp_timings)
                 if len(tmp_timings) < last_len_resource_timings_buffer:
@@ -350,25 +357,27 @@ def load_youtube(
                         float(video_duration_seconds)) + 20
 
                 # get movie player element in selenium to pass into execute script calls
-                nerd_stats_movie_player = driver.find_element(By.ID, "movie_player")
+                nerd_stats_movie_player = driver.find_element(
+                    By.ID, "movie_player")
                 html_video_player = driver.find_element(By.TAG_NAME, "video")
 
-                #logging loop until the measurement is finished
+                # logging loop until the measurement is finished
                 while play_duration_seconds >= 1:
                     if buffer_was_reset == False:
                         tmp_timings = driver.execute_script(
                             script_get_resource_timing)
                         if len(tmp_timings) > last_len_resource_timings_buffer:
                             resource_timings.extend(tmp_timings)
-                            #print(
+                            # print(
                             #    'timings api returned more resources inside logging loop: '+str(len(tmp_timings)))
                             last_len_resource_timings_buffer = len(tmp_timings)
                         if len(tmp_timings) < last_len_resource_timings_buffer:
                             #print('buffer was reset')
                             buffer_was_reset = True
-                    #print("fetching nerdstats, estimated remaining seconds " +
+                    # print("fetching nerdstats, estimated remaining seconds " +
                     #      str(play_duration_seconds))
-                    nerdstats = driver.execute_script(script_get_nerdstats, nerd_stats_movie_player)
+                    nerdstats = driver.execute_script(
+                        script_get_nerdstats, nerd_stats_movie_player)
 
                     resource_timings_buffer = driver.execute_script(
                         script_get_resource_timing_buffer_level)
@@ -388,9 +397,10 @@ def load_youtube(
                 resource_timings.extend(
                     driver.execute_script(script_get_resource_timing))
                 resource_timings.extend(resources_from_waiting_for_video)
-                
+
                 time_sync_py = time.time_ns()
-                time_sync_js = driver.execute_script("return performance.now() + performance.timeOrigin;")
+                time_sync_js = driver.execute_script(
+                    "return performance.now() + performance.timeOrigin;")
                 driver.switch_to.default_content()
                 print("switched out of iframe")
                 event_log = driver.execute_script("return getEventLog();")
@@ -400,12 +410,14 @@ def load_youtube(
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
                 print(str(e))
-                driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
+                driver.get_screenshot_as_file(
+                    protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
                         [], [], -1, -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
-            driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
+            driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-' +
+                                          vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
             return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
@@ -414,7 +426,7 @@ def load_youtube(
 
 
 def perform_page_load(page, cache_warming=0):
-    driver = create_driver()
+    driver = create_driver()#cache_warming, google_video_url)
     # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
     # performance_metrics = get_page_performance_metrics(driver, page)
@@ -426,7 +438,7 @@ def perform_page_load(page, cache_warming=0):
             fheight=height,
             suggested_quality=suggested_quality,
             start_seconds=start_seconds,
-            play_duration_seconds=play_duration_seconds,
+            play_duration_seconds=4,
             video_id=page,
         )
     else:
@@ -440,7 +452,8 @@ def perform_page_load(page, cache_warming=0):
             video_id=page,
         )
     if "error" in event_log[0]:
-        driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
+        driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(
+            cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
     driver.quit()
 
     # generate unique ID for the overall measurement
@@ -459,9 +472,6 @@ def perform_page_load(page, cache_warming=0):
     error = ""
     if "error" in event_log[0]:
         error = event_log[0]["error"]
-
-    insert_measurement(str(uid), time_sync_py, time_sync_js,
-                       resource_time_origin, page, timestamp, error, cache_warming)
 
     if "error" not in event_log[0]:
         # youtube iframe api event log
@@ -484,13 +494,22 @@ def perform_page_load(page, cache_warming=0):
         for item in parse_nerd_stats(nerd_stats):
             insert_nerdstats(item, str(uid))
 
-        for item in parse_resource_timings(resource_timings):
+        resource_timings = parse_resource_timings(resource_timings)
+        for item in resource_timings:
             insert_resources(item, str(uid))
+    google_video_url_ = get_googlevideo_url(resource_timings)
+    if (cache_warming == 0) and (google_video_url_ != google_video_url) and (error == ''):
+        error = "googlevideo subdomain changed between cache warming and actual measurement: from " + \
+            google_video_url+" to "+google_video_url_
+
+    insert_measurement(str(uid), time_sync_py, time_sync_js,
+                       resource_time_origin, page, timestamp, error, cache_warming)
 
     # send restart signal to dnsProxy after loading the page
     if proxyPID != 0:
         os.system("sudo kill -SIGUSR1 %d" % proxyPID)
         time.sleep(0.5)
+    return google_video_url_
 
 
 def parse_nerd_stats(nerd_stats):
@@ -530,6 +549,19 @@ def parse_resource_timings(resource_timings):
     ) if k in relevant_resource_timing_keys} for timing_dict in resource_timings]
     # remove duplicates, all items inside the dicts should be hashable
     return [dict(t) for t in {tuple(d.items()) for d in resource_timings}]
+
+
+def get_googlevideo_url(googlevideo_resource_timings_no_dup):
+    # googlevideo_resource_timings_no_dup = [{k: v for k, v in timing_dict.items() if k in ['name', 'nextHopProtocol']} for timing_dict in googlevideo_resource_timings_no_dup]
+    netlocs = []
+    # print(set([item['nextHopProtocol'] for item in googlevideo_resource_timings_no_dup]))
+    for item in googlevideo_resource_timings_no_dup:
+        parse_res = parse.urlparse(item['name'])
+        netlocs.append(parse_res.netloc)
+    netlocs = list(set(netlocs))
+    if len(netlocs) > 1:
+        print(':443, '.join(netlocs)+':443')
+    return ':443, '.join(netlocs)+':443'
 
 
 def create_iframe_api_table():
@@ -802,7 +834,7 @@ create_qlogs_table()
 for p in pages:
     # cache warming
     print(f"{p}: cache warming")
-    perform_page_load(p, 1)
+    google_video_url = perform_page_load(p, 1)
     # performance measurement
     print(f"{p}: measuring")
     perform_page_load(p)

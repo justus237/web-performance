@@ -41,14 +41,14 @@ def create_driver(cacheWarming=0, google_video_url="googlevideo.com"):
     if browser == "chrome":
         chrome_options = chromeOptions()
         chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument('--headless')
+        #chrome_options.add_argument('--headless')
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--autoplay-policy=no-user-gesture-required")
         chrome_options.add_argument('--disable-http-cache')
         if cacheWarming == 0:
             print(google_video_url)
-            #comma separated list, doesnt accept wildcards
-            chrome_options.add_argument('--origin-to-force-quic-on='+google_video_url)
+            #comma separated list, doesnt accept wildcards, quotation marks required if more than one
+            chrome_options.add_argument('--origin-to-force-quic-on="youtube.com:443, www.youtube.com:443, googlevideo.com:443, '+google_video_url+'"')
         return webdriver.Chrome(options=chrome_options)
 
 
@@ -78,8 +78,8 @@ class video_element_has_duration_attribute(object):
 
 def load_youtube(
     driver,
-    fwidth=640,
-    fheight=360,
+    fwidth=1280,
+    fheight=720,
     suggested_quality="auto",
     start_seconds=0,
     play_duration_seconds=30,
@@ -218,17 +218,17 @@ def perform_page_load(cache_warming=0):
         resource_timings = load_youtube(driver, play_duration_seconds=10)
     driver.quit()
     if "error" not in resource_timings[0]:
-        return parse_resource_timings(resource_timings)
+        return get_googlevideo_url(resource_timings)
     return "error"
 
 
 
 
 
-def parse_resource_timings(resource_timings):
+def get_googlevideo_url(resource_timings):
     #resource_time_start_adjusted_timestamp = resource_timings.pop(0)
     # only look at resources that are actual video or audio requests
-    resource_timings = [timing for timing in resource_timings if "googlevideo.com" in timing['name']]
+    resource_timings = [timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
     # remove keys that are static or always empty
     resource_timings = [{k: v for k, v in timing_dict.items(
     ) if k in relevant_resource_timing_keys} for timing_dict in resource_timings]
