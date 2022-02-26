@@ -438,7 +438,7 @@ def perform_page_load(page, cache_warming=0):
             fheight=height,
             suggested_quality=suggested_quality,
             start_seconds=start_seconds,
-            play_duration_seconds=4,
+            play_duration_seconds=play_duration_seconds,
             video_id=page,
         )
     else:
