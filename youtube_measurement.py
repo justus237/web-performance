@@ -203,10 +203,10 @@ browser = "chrome"
 # #doesnt work...
 # #chrome_options.add_argument("--origin-to-force-quic-on=*.youtube.com:443 *.youtube.com:80 *.googlevideo.com:443 *.googlevideo.com:80")
 
-google_video_url = ""
 
 
-def create_driver():#cacheWarming=0, google_video_url="googlevideo.com"):
+
+def create_driver():
     if browser == "chrome":
         chrome_options = chromeOptions()
         chrome_options.add_argument("--no-sandbox")
@@ -424,23 +424,40 @@ def load_youtube(
         print(str(e))
         return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1, -1)
 
+def load_youtube_empty_iframe_cachewarming(driver):
+    try:
+        driver.set_page_load_timeout(15)
+        driver.get("http://localhost:22222/youtube_iframe.html")
+        while driver.execute_script("return document.readyState;") != "complete":
+            time.sleep(1)
+        try:
+            wait = WebDriverWait(driver, 15)
+            wait.until(
+                EC.visibility_of_element_located((By.ID, "player"))
+            )
+            time.sleep(1)
+            return [{"successful_cache_warming": "cache warming successful ###"}]
+        except selenium.common.exceptions.WebDriverException as e:
+            print("failed loading player")
+            driver.get_screenshot_as_file('cache-warmup-failed-'+protocol+'-'+server+'-'+video_id+'-' +
+                                          vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
+            return [{"error": "failed loading player for cache warming ### " + str(e)}]
+    except selenium.common.exceptions.WebDriverException as e:
+        print("failed driver.get()")
+        return [{"error": "failed driver.get() for cache warming ### " + str(e)}]
+
 
 def perform_page_load(page, cache_warming=0):
-    driver = create_driver()#cache_warming, google_video_url)
+    driver = create_driver()
     # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
     # performance_metrics = get_page_performance_metrics(driver, page)
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
-        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
-            driver,
-            fwidth=width,
-            fheight=height,
-            suggested_quality=suggested_quality,
-            start_seconds=start_seconds,
-            play_duration_seconds=play_duration_seconds,
-            video_id=page,
-        )
+        event_log = load_youtube_empty_iframe_cachewarming(driver)
+        time_sync_py = -1
+        time_sync_js = -1
+        resource_time_origin = -1
     else:
         event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
             driver,
@@ -451,9 +468,9 @@ def perform_page_load(page, cache_warming=0):
             play_duration_seconds=play_duration_seconds,
             video_id=page,
         )
-    if "error" in event_log[0]:
-        driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(
-            cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
+    #if "error" in event_log[0]:
+    #    driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(
+    #        cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
     driver.quit()
 
     # generate unique ID for the overall measurement
@@ -473,7 +490,14 @@ def perform_page_load(page, cache_warming=0):
     if "error" in event_log[0]:
         error = event_log[0]["error"]
 
-    if "error" not in event_log[0]:
+    insert_measurement(str(uid), time_sync_py, time_sync_js,
+                       resource_time_origin, page, timestamp, error, cache_warming)
+
+    if "successful_cache_warming" in event_log[0]:
+        print("cache warming successful")
+
+    if "error" not in event_log[0] and "successful_cache_warming" not in event_log[0]:
+        print("actual measurement successful")
         # youtube iframe api event log
         # add missing keys in their correct format (most basic types, other sqlite types are derived from this anyway)
         for event in event_log:
@@ -494,22 +518,16 @@ def perform_page_load(page, cache_warming=0):
         for item in parse_nerd_stats(nerd_stats):
             insert_nerdstats(item, str(uid))
 
-        resource_timings = parse_resource_timings(resource_timings)
-        for item in resource_timings:
+        for item in parse_resource_timings(resource_timings):
             insert_resources(item, str(uid))
-    google_video_url_ = get_googlevideo_url(resource_timings)
-    if (cache_warming == 0) and (google_video_url_ != google_video_url) and (error == ''):
-        error = "googlevideo subdomain changed between cache warming and actual measurement: from " + \
-            google_video_url+" to "+google_video_url_
 
-    insert_measurement(str(uid), time_sync_py, time_sync_js,
-                       resource_time_origin, page, timestamp, error, cache_warming)
+
 
     # send restart signal to dnsProxy after loading the page
     if proxyPID != 0:
         os.system("sudo kill -SIGUSR1 %d" % proxyPID)
         time.sleep(0.5)
-    return google_video_url_
+
 
 
 def parse_nerd_stats(nerd_stats):
@@ -551,17 +569,7 @@ def parse_resource_timings(resource_timings):
     return [dict(t) for t in {tuple(d.items()) for d in resource_timings}]
 
 
-def get_googlevideo_url(googlevideo_resource_timings_no_dup):
-    # googlevideo_resource_timings_no_dup = [{k: v for k, v in timing_dict.items() if k in ['name', 'nextHopProtocol']} for timing_dict in googlevideo_resource_timings_no_dup]
-    netlocs = []
-    # print(set([item['nextHopProtocol'] for item in googlevideo_resource_timings_no_dup]))
-    for item in googlevideo_resource_timings_no_dup:
-        parse_res = parse.urlparse(item['name'])
-        netlocs.append(parse_res.netloc)
-    netlocs = list(set(netlocs))
-    if len(netlocs) > 1:
-        print(':443, '.join(netlocs)+':443')
-    return ':443, '.join(netlocs)+':443'
+
 
 
 def create_iframe_api_table():
@@ -773,19 +781,18 @@ def insert_lookups(uid):
         for line in lines:
             # upon success
             if "successfully finished exchange" in line:
-                if "tranco-list.eu." not in line:
-                    currently_parsing = "success"
-                    domain = re.search("exchange of ;(.*)IN",
-                                       line).group(1).rstrip()
-                    elapsed = re.search("Elapsed (.*)ms", line)
-                    factor = 1.0
-                    if elapsed is None:
-                        elapsed = re.search("Elapsed (.*)µs", line)
-                        factor = 1.0 / 1000.0
-                    if elapsed is None:
-                        elapsed = re.search("Elapsed (.*)s", line)
-                        factor = 1000.0
-                    elapsed = float(elapsed.group(1)) * factor
+                currently_parsing = "success"
+                domain = re.search("exchange of ;(.*)IN",
+                                    line).group(1).rstrip()
+                elapsed = re.search("Elapsed (.*)ms", line)
+                factor = 1.0
+                if elapsed is None:
+                    elapsed = re.search("Elapsed (.*)µs", line)
+                    factor = 1.0 / 1000.0
+                if elapsed is None:
+                    elapsed = re.search("Elapsed (.*)s", line)
+                    factor = 1000.0
+                elapsed = float(elapsed.group(1)) * factor
             # upon failure
             elif "failed to exchange" in line:
                 currently_parsing = "failure"
@@ -834,7 +841,7 @@ create_qlogs_table()
 for p in pages:
     # cache warming
     print(f"{p}: cache warming")
-    google_video_url = perform_page_load(p, 1)
+    perform_page_load(p, 1)
     # performance measurement
     print(f"{p}: measuring")
     perform_page_load(p)
