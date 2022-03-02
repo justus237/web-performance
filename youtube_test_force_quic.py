@@ -227,6 +227,10 @@ def perform_page_load(cache_warming=0):
 
 def get_googlevideo_url(resource_timings):
     #resource_time_start_adjusted_timestamp = resource_timings.pop(0)
+    non_googlevideo = [timing for timing in resource_timings if "googlevideo.com/videoplayback" not in timing['name']]
+    for item in non_googlevideo:
+        parse_res = urlparse(item['name'])
+        print(parse_res.netloc)
     # only look at resources that are actual video or audio requests
     resource_timings = [timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
     # remove keys that are static or always empty
