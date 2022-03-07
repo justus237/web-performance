@@ -73,10 +73,10 @@ while read upstream; do
 				# measurements
 				sleep 1
 				echo "starting measurement ${framesize}, auto, ${videos[@]} over ${p} on ${upstream}"
-				cd /home/ubuntu/web-performance
+				cd /home/ubuntu/web-performance-youtube
 				#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
 				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize auto 0 30 ${videos[@]}
-		
+
 				sleep 1
 				echo "killing dnsproxy"
 				kill -SIGTERM $dnsproxyPID
@@ -87,7 +87,7 @@ while read upstream; do
 	else
 		echo "${upstream} not reachable"
 	fi
-done < /home/ubuntu/web-performance/servers.txt
+done < /home/ubuntu/web-performance-youtube/servers.txt
 
 # restart systemd-resolved
 systemctl enable systemd-resolved
