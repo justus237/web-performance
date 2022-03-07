@@ -13,7 +13,7 @@ echo "starting measurement process..."
 date
 
 # get vantage point info
-vp="none"
+vp=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname | cut -d . -f2)
 # increase UDP receive buffer size
 sysctl -w net.core.rmem_max=25000000
 # stop systemd-resolved and edit resolv.conf
@@ -31,7 +31,9 @@ declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak")
 
 while read upstream; do
-  # skip server if it is unreachable
+	qport=$(echo ${upstream} | cut -d: -f2)
+  	upstream=$(echo ${upstream} | cut -d: -f1)
+  	# skip server if it is unreachable
 	ping -c 1 ${upstream} 2>&1 >/dev/null ;
 	ping_code=$?
 	if [ $ping_code = 0 ]
@@ -52,7 +54,12 @@ while read upstream; do
 				resolver="${p}://${https_upstream}"
 			elif [ $p = "quic" ]
 			then
-				resolver="quic://${upstream}:784"
+				if [ $qport = "8853" ]
+			  	then
+			    	resolver="quic://${upstream}:8853"
+			  	else
+					resolver="quic://${upstream}:784"
+				fi
 			else
 				resolver="${p}://${upstream}"
 			fi

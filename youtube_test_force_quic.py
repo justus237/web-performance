@@ -214,9 +214,9 @@ def perform_page_load(cache_warming=0):
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
         resource_timings = load_youtube(driver, play_duration_seconds=5)
+        driver.quit()
     else:
         resource_timings = load_youtube(driver, play_duration_seconds=10)
-    driver.quit()
     if "error" not in resource_timings[0]:
         return get_googlevideo_url(resource_timings)
     return "error"
