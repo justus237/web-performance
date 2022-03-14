@@ -26,8 +26,8 @@ sysctl -w net.ipv6.conf.default.disable_ipv6=1
 sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 
 declare -a protocols=("tls" "https" "quic" "tcp" "udp")
-#"1920 1080" "2560 1440" 
-declare -a framesizes=("1280 720" "3840 2160")
+
+declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 #4k-capable: ("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
 declare -a videos=("aqz-KE-bpKQ")
 
