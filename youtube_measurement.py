@@ -282,6 +282,12 @@ def load_youtube(
     script_get_resource_timing_buffer_level = 'return performance.getEntriesByType("resource").length;'
     script_get_resource_timing = 'return performance.getEntriesByType("resource");'
 
+    # https://w3c.github.io/navigation-timing/
+    web_perf_script = 'return performance.getEntriesByType("navigation")[0]["loadEventEnd"];'
+    # https://developer.mozilla.org/en-US/docs/Web/API/Navigation_timing_API#examples
+    # less accurate in chrome due to absolute timestamps
+    page_load_script = """const perfData = window.performance.timing; return perfData.loadEventEnd - perfData.navigationStart;"""
+
     # document.getElementById("movie_player").getMediaReferenceTime() -> current playback time in seconds
     # getProgressState()['loaded'] - getProgressState()['current'] returns buffered amount
     # getAdState() -> might need this for more general video playback?
@@ -304,6 +310,7 @@ def load_youtube(
                 f'setVideo("{video_id}",{start_seconds},"{suggested_quality}");'
             )
             time.sleep(0.5)
+            page_load_time = driver.execute_script(web_perf_script)
             # yt_iframe_api_video_duration_sec = driver.execute_script(
             #    script_get_video_duration
             # )
@@ -405,7 +412,7 @@ def load_youtube(
                 print("switched out of iframe")
                 event_log = driver.execute_script("return getEventLog();")
                 ###driver.execute_script('return window.eventLog')
-                return (event_log, nerdstats_log, resource_timings, time_sync_py, time_sync_js, resource_time_start_adjusted_timestamp)
+                return (event_log, nerdstats_log, resource_timings, time_sync_py, time_sync_js, resource_time_start_adjusted_timestamp, page_load_time)
             except selenium.common.exceptions.WebDriverException as e:
                 print(
                     "failed switching selenium focus to youtube iframe or monitoring loop")
@@ -413,18 +420,19 @@ def load_youtube(
                 driver.get_screenshot_as_file(
                     protocol+'-'+server+'-'+video_id+'-'+vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
-                        [], [], -1, -1, -1)
+                        [], [], -1, -1, -1, -1)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
             driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-' +
                                           vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
-            return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1)
+            return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1, -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
         print(str(e))
-        return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1, -1)
+        return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1, -1, -1)
 
 def load_youtube_empty_iframe_cachewarming(driver):
+    web_perf_script = 'return performance.getEntriesByType("navigation")[0]["loadEventEnd"];'
     try:
         driver.set_page_load_timeout(15)
         driver.get("http://localhost:22222/youtube_iframe.html")
@@ -436,7 +444,8 @@ def load_youtube_empty_iframe_cachewarming(driver):
                 EC.visibility_of_element_located((By.ID, "player"))
             )
             time.sleep(1)
-            return [{"successful_cache_warming": "cache warming successful ###"}]
+            page_load_time = driver.execute_script(web_perf_script)
+            return [{"successful_cache_warming": "cache warming successful ###"}], page_load_time
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
             driver.get_screenshot_as_file('cache-warmup-failed-'+protocol+'-'+server+'-'+'-' +
@@ -454,12 +463,12 @@ def perform_page_load(page, cache_warming=0):
     # performance_metrics = get_page_performance_metrics(driver, page)
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
-        event_log = load_youtube_empty_iframe_cachewarming(driver)
+        event_log, page_load_time = load_youtube_empty_iframe_cachewarming(driver)
         time_sync_py = -1
         time_sync_js = -1
         resource_time_origin = -1
     else:
-        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin = load_youtube(
+        event_log, nerd_stats, resource_timings, time_sync_py, time_sync_js, resource_time_origin, page_load_time = load_youtube(
             driver,
             fwidth=width,
             fheight=height,
@@ -491,7 +500,7 @@ def perform_page_load(page, cache_warming=0):
         error = event_log[0]["error"]
 
     insert_measurement(str(uid), time_sync_py, time_sync_js,
-                       resource_time_origin, page, timestamp, error, cache_warming)
+                       resource_time_origin, page, timestamp, error, cache_warming, page_load_time)
 
     if "successful_cache_warming" in event_log[0]:
         print("cache warming successful")
@@ -690,6 +699,7 @@ def create_measurements_table():
                 play_time integer,
                 video_ids string,
                 cacheWarming integer,
+                page_load_time double,
                 error string,
                 PRIMARY KEY (msm_id)
             );
@@ -698,9 +708,9 @@ def create_measurements_table():
     db.commit()
 
 
-def insert_measurement(msm_id, py_time, js_time, resource_time_origin, page, timestamp, error, cache_warming=0):
-    cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);", (msm_id, py_time, js_time,
-                   resource_time_origin, protocol, server, page, vantage_point, timestamp, suggested_quality, width, height, start_seconds, play_duration_seconds, ", ".join(pages), cache_warming, error))
+def insert_measurement(msm_id, py_time, js_time, resource_time_origin, page, timestamp, error, cache_warming, page_load_time):
+    cursor.execute("INSERT INTO measurements VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);", (msm_id, py_time, js_time,
+                   resource_time_origin, protocol, server, page, vantage_point, timestamp, suggested_quality, width, height, start_seconds, play_duration_seconds, ", ".join(pages), cache_warming, page_load_time, error))
     db.commit()
 
 

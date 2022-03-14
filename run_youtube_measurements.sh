@@ -28,7 +28,7 @@ sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 declare -a protocols=("tls" "https" "quic" "tcp" "udp")
 declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 #4k-capable: ("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
-declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak")
+declare -a videos=("aqz-KE-bpKQ")
 
 while read upstream; do
 	qport=$(echo ${upstream} | cut -d: -f2)
@@ -94,5 +94,6 @@ systemctl enable systemd-resolved
 systemctl start systemd-resolved
 
 date
+# https://unix.stackexchange.com/a/340156
 ELAPSED="Elapsed: $(($SECONDS / 3600))hrs $((($SECONDS / 60) % 60))min $(($SECONDS % 60))sec"
 echo $ELAPSED
