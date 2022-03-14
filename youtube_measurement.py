@@ -445,15 +445,15 @@ def load_youtube_empty_iframe_cachewarming(driver):
             )
             time.sleep(1)
             page_load_time = driver.execute_script(web_perf_script)
-            return [{"successful_cache_warming": "cache warming successful ###"}], page_load_time
+            return ([{"successful_cache_warming": "cache warming successful ###"}], page_load_time)
         except selenium.common.exceptions.WebDriverException as e:
             print("failed loading player")
             driver.get_screenshot_as_file('cache-warmup-failed-'+protocol+'-'+server+'-'+'-' +
                                           vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
-            return [{"error": "failed loading player for cache warming ### " + str(e)}]
+            return ([{"error": "failed loading player for cache warming ### " + str(e)}], -1)
     except selenium.common.exceptions.WebDriverException as e:
         print("failed driver.get()")
-        return [{"error": "failed driver.get() for cache warming ### " + str(e)}]
+        return ([{"error": "failed driver.get() for cache warming ### " + str(e)}], -1)
 
 
 def perform_page_load(page, cache_warming=0):
