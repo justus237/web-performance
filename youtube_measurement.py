@@ -283,7 +283,7 @@ def load_youtube(
     script_get_resource_timing = 'return performance.getEntriesByType("resource");'
 
     # https://w3c.github.io/navigation-timing/
-    web_perf_script = 'return performance.getEntriesByType("navigation")[0]["loadEventEnd"];'
+    web_perf_script = 'return performance.getEntriesByType("navigation")[0]["loadEventStart"];'
     # https://developer.mozilla.org/en-US/docs/Web/API/Navigation_timing_API#examples
     # less accurate in chrome due to absolute timestamps
     page_load_script = """const perfData = window.performance.timing; return perfData.loadEventEnd - perfData.navigationStart;"""
