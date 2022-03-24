@@ -215,6 +215,8 @@ def create_driver():
         chrome_options.add_argument(
             "--autoplay-policy=no-user-gesture-required")
         chrome_options.add_argument('--disable-http-cache')
+        chrome_options.add_argument('--origin-to-force-quic-on=*')
+        chrome_options.add_argument('--enable-quic')
         # force http/3 for the actual measurement
         # otherwise the initial requests will be http/1.1
         # could not get it working
