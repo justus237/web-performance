@@ -621,8 +621,8 @@ def parse_nerd_stats(nerd_stats):
 def parse_resource_timings(resource_timings):
     #resource_time_start_adjusted_timestamp = resource_timings.pop(0)
     # only look at resources that are actual video or audio requests
-    resource_timings = [
-        timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
+    #resource_timings = [
+    #    timing for timing in resource_timings if "googlevideo.com/videoplayback" in timing['name']]
     # for timing in resource_timings:
     #    # (requestStart-responseEnd) + some delay (decoding?) = duration
     #    # decodedBodySize -> bytes fetched (range in name)
