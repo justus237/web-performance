@@ -516,6 +516,7 @@ def load_youtube_empty_iframe_cachewarming(driver):
 
 
 def perform_page_load(page, cache_warming=0):
+    successful_cache_warming = False
     driver = create_driver()
     # >>timestamp<< is the measurement itself, >>time<< is the time a callback/log event happened
     timestamp = datetime.now()
@@ -563,6 +564,7 @@ def perform_page_load(page, cache_warming=0):
 
     if "successful_cache_warming" in event_log[0]:
         print("cache warming successful")
+        successful_cache_warming = True
 
     if "error" not in event_log[0] and "successful_cache_warming" not in event_log[0]:
         print("actual measurement successful")
@@ -591,13 +593,11 @@ def perform_page_load(page, cache_warming=0):
 
         insert_web_performance(performance_metrics, str(uid))
 
-
-
     # send restart signal to dnsProxy after loading the page
     if proxyPID != 0:
         os.system("sudo kill -SIGUSR1 %d" % proxyPID)
         time.sleep(0.5)
-
+    return successful_cache_warming
 
 
 def parse_nerd_stats(nerd_stats):
@@ -980,9 +980,10 @@ create_dns_metrics_table()
 for p in pages:
     # cache warming
     print(f"{p}: cache warming")
-    perform_page_load(p, 1)
-    # performance measurement
-    print(f"{p}: measuring")
-    perform_page_load(p)
+    successful_cache_warming = perform_page_load(p, 1)
+    if successful_cache_warming:
+        # performance measurement
+        print(f"{p}: measuring")
+        perform_page_load(p)
 
 db.close()
