@@ -27,9 +27,9 @@ sysctl -w net.ipv6.conf.lo.disable_ipv6=1
 
 declare -a protocols=("tls" "https" "quic" "tcp" "udp")
 
-declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
+#declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 #4k-capable: ("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
-declare -a videos=("aqz-KE-bpKQ")
+declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak")
 
 while read upstream; do
 	qport=$(echo ${upstream} | cut -d: -f2)
@@ -43,29 +43,30 @@ while read upstream; do
 	
 		https_upstream="${upstream}/dns-query"
 		
-		for p in "${protocols[@]}"
-		do
-			echo $p
-	
-			if [ $p = "udp" ]
-			then
-				resolver="${upstream}"
-			elif [ $p = "https" ]
-			then
-				resolver="${p}://${https_upstream}"
-			elif [ $p = "quic" ]
-			then
-				if [ $qport = "8853" ]
-			  	then
-			    	resolver="quic://${upstream}:8853"
-			  	else
-					resolver="quic://${upstream}:784"
-				fi
-			else
-				resolver="${p}://${upstream}"
-			fi
+		for video in "${videos[@]}"; do
+			for p in "${protocols[@]}"
+			do
+				echo $p
 
-			for framesize in "${framesizes[@]}"; do
+				if [ $p = "udp" ]
+				then
+					resolver="${upstream}"
+				elif [ $p = "https" ]
+				then
+					resolver="${p}://${https_upstream}"
+				elif [ $p = "quic" ]
+				then
+					if [ $qport = "8853" ]
+					then
+						resolver="quic://${upstream}:8853"
+					else
+						resolver="quic://${upstream}:784"
+					fi
+				else
+					resolver="${p}://${upstream}"
+				fi
+
+			
 				sleep 1
 				echo "starting dnsproxy"
 				./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.2" >& /home/ubuntu/web-performance-youtube/dnsproxy.log &
@@ -73,10 +74,10 @@ while read upstream; do
 		
 				# measurements
 				sleep 1
-				echo "starting measurement ${framesize}, auto, ${videos[@]} over ${p} on ${upstream}"
+				echo "starting measurement 720p, auto, ${video} over ${p} on ${upstream}"
 				cd /home/ubuntu/web-performance-youtube
 				#python3 run_measurements.py $p $upstream $dnsproxyPID chrome $vp
-				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp $framesize auto 0 30 ${videos[@]}
+				python3 youtube_measurement.py $p $upstream $dnsproxyPID chrome $vp 1280 720 auto 0 5 $video}
 
 				sleep 1
 				echo "killing dnsproxy"

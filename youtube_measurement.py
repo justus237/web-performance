@@ -322,13 +322,13 @@ def load_youtube(
 
     nerdstats_log = []
     try:
-        driver.set_page_load_timeout(15)
+        driver.set_page_load_timeout(5)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
 
         try:
-            wait = WebDriverWait(driver, 15)
+            wait = WebDriverWait(driver, 5)
             youtube_player_iframe = wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
@@ -493,12 +493,12 @@ def load_youtube_empty_iframe_cachewarming(driver):
             return resultJson;
             """
     try:
-        driver.set_page_load_timeout(15)
+        driver.set_page_load_timeout(5)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
         try:
-            wait = WebDriverWait(driver, 15)
+            wait = WebDriverWait(driver, 5)
             wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
@@ -726,6 +726,18 @@ def create_lookups_table():
     )
     db.commit()
 
+def create_dns_metrics_table():
+    cursor.execute(
+        """
+            CREATE TABLE IF NOT EXISTS dns_metrics (
+                msm_id string,
+                metric string,
+                FOREIGN KEY (msm_id) REFERENCES measurements(msm_id)
+            );
+            """
+    )
+    db.commit()
+
 
 def create_qlogs_table():
     cursor.execute(
@@ -882,6 +894,15 @@ def insert_lookup(uid, domain, elapsed, status, answer):
     )
     db.commit()
 
+def insert_dns_metric(msm_id, metric):
+    cursor.execute(
+        """
+    INSERT INTO dns_metrics VALUES (?,?);
+    """,
+        (msm_id,metric),
+    )
+    db.commit()
+
 
 def insert_lookups(uid):
     with open("dnsproxy.log", "r") as logs:
@@ -941,6 +962,8 @@ def insert_lookups(uid):
                 else:
                     answer += ",".join(line.split())
                     answer += "|"
+            if "metrics:" in line:
+                insert_dns_metric(uid, line)
     # remove the log after parsing it
     with open("dnsproxy.log", "w") as logs:
         logs.write("")
@@ -953,6 +976,7 @@ create_page_resources_table()
 create_web_performance_table()
 create_lookups_table()
 create_qlogs_table()
+create_dns_metrics_table()
 for p in pages:
     # cache warming
     print(f"{p}: cache warming")
