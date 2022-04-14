@@ -511,7 +511,7 @@ def load_youtube_empty_iframe_cachewarming(driver):
                                           vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
             return ([{"error": "failed loading player for cache warming ### " + str(e)}], dict())
     except selenium.common.exceptions.WebDriverException as e:
-        print("failed driver.get()")
+        print("failed driver.get()"+str(e))
         return ([{"error": "failed driver.get() for cache warming ### " + str(e)}], dict())
 
 
