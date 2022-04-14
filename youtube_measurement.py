@@ -943,6 +943,8 @@ def insert_lookups(uid):
                     elapsed = re.search("in (.*)s\\.", line)
                     factor = 1000.0
                 elapsed = float(elapsed.group(1)) * factor
+            elif "metrics:" in line:
+                insert_dns_metric(uid, line)
             elif currently_parsing == "":
                 pass
             elif ", status: " in line:
@@ -962,8 +964,7 @@ def insert_lookups(uid):
                 else:
                     answer += ",".join(line.split())
                     answer += "|"
-            if "metrics:" in line:
-                insert_dns_metric(uid, line)
+    # necessary so that cache warming lookups dont get written
     # remove the log after parsing it
     with open("dnsproxy.log", "w") as logs:
         logs.write("")
