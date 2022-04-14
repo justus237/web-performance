@@ -322,7 +322,7 @@ def load_youtube(
 
     nerdstats_log = []
     try:
-        driver.set_page_load_timeout(5)
+        driver.set_page_load_timeout(10)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
@@ -450,12 +450,12 @@ def load_youtube(
                 return ([{"error": "failed switching selenium focus to youtube iframe or monitoring loop ### " + str(e)}],
                         [], [], -1, -1, -1, dict())
         except selenium.common.exceptions.WebDriverException as e:
-            print("failed loading player")
+            print("failed loading player"+str(e))
             driver.get_screenshot_as_file(protocol+'-'+server+'-'+video_id+'-' +
                                           vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
             return ([{"error": "failed loading player ### " + str(e)}], [], [], -1, -1, -1, dict())
     except selenium.common.exceptions.WebDriverException as e:
-        print("failed driver.get()")
+        print("failed driver.get()"+str(e))
         print(str(e))
         return ([{"error": "failed driver.get() ### " + str(e)}], [], [], -1, -1, -1, dict())
 
@@ -493,7 +493,7 @@ def load_youtube_empty_iframe_cachewarming(driver):
             return resultJson;
             """
     try:
-        driver.set_page_load_timeout(5)
+        driver.set_page_load_timeout(10)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
@@ -506,7 +506,7 @@ def load_youtube_empty_iframe_cachewarming(driver):
             performance_metrics = driver.execute_script(web_perf_script)
             return ([{"successful_cache_warming": "cache warming successful ###"}], performance_metrics)
         except selenium.common.exceptions.WebDriverException as e:
-            print("failed loading player")
+            print("failed loading player"+str(e))
             driver.get_screenshot_as_file('cache-warmup-failed-'+protocol+'-'+server+'-'+'-' +
                                           vantage_point+'-'+datetime.now().strftime("%y-%m-%d-%H:%M:%S")+'.png')
             return ([{"error": "failed loading player for cache warming ### " + str(e)}], dict())
