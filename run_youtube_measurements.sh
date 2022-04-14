@@ -59,6 +59,9 @@ while read upstream; do
 					if [ $qport = "8853" ]
 					then
 						resolver="quic://${upstream}:8853"
+					elif [ $qport = "853" ]
+					then
+						resolver="quic://${upstream}:853"
 					else
 						resolver="quic://${upstream}:784"
 					fi
