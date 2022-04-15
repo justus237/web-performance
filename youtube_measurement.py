@@ -322,13 +322,13 @@ def load_youtube(
 
     nerdstats_log = []
     try:
-        driver.set_page_load_timeout(10)
+        driver.set_page_load_timeout(15)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
 
         try:
-            wait = WebDriverWait(driver, 5)
+            wait = WebDriverWait(driver, 15)
             youtube_player_iframe = wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
@@ -397,7 +397,7 @@ def load_youtube(
                 html_video_player = driver.find_element(By.TAG_NAME, "video")
 
                 # logging loop until the measurement is finished
-                while play_duration_seconds >= 1:
+                while play_duration_seconds >= 0:
                     if buffer_was_reset == False:
                         tmp_timings = driver.execute_script(
                             script_get_resource_timing)
@@ -493,12 +493,12 @@ def load_youtube_empty_iframe_cachewarming(driver):
             return resultJson;
             """
     try:
-        driver.set_page_load_timeout(10)
+        driver.set_page_load_timeout(15)
         driver.get("http://localhost:22222/youtube_iframe.html")
         while driver.execute_script("return document.readyState;") != "complete":
             time.sleep(1)
         try:
-            wait = WebDriverWait(driver, 5)
+            wait = WebDriverWait(driver, 15)
             wait.until(
                 EC.visibility_of_element_located((By.ID, "player"))
             )
