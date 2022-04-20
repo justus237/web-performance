@@ -209,7 +209,7 @@ def run_dig(cw):
     sha.update(sha_input.encode())
     uid = str(uuid.UUID(sha.hexdigest()))
     insert_msm(uid, protocol, server, timestamp, dns_response, server_msm_timestamp, cw)
-    if protocol == "quic" and cw == False:
+    if protocol == "quic":
         insert_qlogs(uid)
     insert_lookups(uid)
     if proxyPID != 0 and cw == True:
