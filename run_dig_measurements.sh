@@ -80,7 +80,7 @@ while read upstream; do
 			# measurements
 			sleep 1
 			cd /home/ubuntu/dns-measurements-dig
-			python3 dig_measurement_metrics.py $p $upstream $dnsproxyPID $timestamp
+			python3 dig_measurement.py $p $upstream $dnsproxyPID $timestamp
 			
 			
 			sleep 1
