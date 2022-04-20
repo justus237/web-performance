@@ -205,11 +205,11 @@ def run_dig(cw):
     dns_response = os.system("dig @127.0.0.2 test.com")
     # generate unique ID for the overall measurement
     sha = hashlib.md5()
-    sha_input = ('' + protocol + server + timestamp.strftime("%y-%m-%d-%H:%M:%S"))
+    sha_input = ('' + protocol + server + str(cw)+ timestamp.strftime("%y-%m-%d-%H:%M:%S"))
     sha.update(sha_input.encode())
     uid = str(uuid.UUID(sha.hexdigest()))
     insert_msm(uid, protocol, server, timestamp, dns_response, server_msm_timestamp, cw)
-    if protocol == "quic":
+    if protocol == "quic" and cw == False:
         insert_qlogs(uid)
     insert_lookups(uid)
     if proxyPID != 0 and cw == True:
