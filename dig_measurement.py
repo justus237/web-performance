@@ -9,7 +9,7 @@ import os
 
 dnsproxy_dir = "/home/ubuntu/dnsproxy/"
 
-db = sqlite3.connect("dns-metrics.db")
+db = sqlite3.connect("dns-performance.db")
 cursor = db.cursor()
 
 # retrieve input params
