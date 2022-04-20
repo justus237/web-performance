@@ -202,7 +202,7 @@ create_dns_metrics_table()
 
 def run_dig(cw):
     timestamp = datetime.now()
-    dns_response = os.system("dig @127.0.0.2 test.com")
+    dns_response = os.popen("dig @127.0.0.2 test.com").read()
     # generate unique ID for the overall measurement
     sha = hashlib.md5()
     sha_input = ('' + protocol + server + str(cw)+ timestamp.strftime("%y-%m-%d-%H:%M:%S"))
