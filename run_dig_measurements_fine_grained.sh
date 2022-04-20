@@ -85,12 +85,12 @@ while read upstream; do
 			cp dnsproxy.log /home/ubuntu/dns-measurements-dig/cache-warming/dnsproxy-${p}-${upstream}-${timestamp}.log
 			sleep 0.5
 			truncate -s0 dnsproxy.log
-			#if [ $p = "quic" ]
-			#then
-			#	cp qlogs.txt /home/ubuntu/dns-measurements-dig/cache-warming/dnsproxy-qlog-${upstream}-${timestamp}.txt
-			#	sleep 0.5
-			#	truncate -s0 qlogs.txt
-			#fi
+			if [ $p = "quic" ]
+			then
+				cp qlogs.txt /home/ubuntu/dns-measurements-dig/cache-warming/dnsproxy-qlog-${upstream}-${timestamp}.txt
+				sleep 0.5
+				truncate -s0 qlogs.txt
+			fi
 
 			echo "stopping and restarting tcpdump"
 			tcpdumpPID=$(ps -e | pgrep tcpdump)  
