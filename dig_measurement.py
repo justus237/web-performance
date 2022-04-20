@@ -212,7 +212,7 @@ def run_dig(cw):
     if protocol == "quic":
         insert_qlogs(uid)
     insert_lookups(uid)
-    if proxyPID != 0 and cw == True:
+    if proxyPID != 0:
         os.system("sudo kill -SIGUSR1 %d" % proxyPID)
         time.sleep(0.5)
     
