@@ -84,10 +84,10 @@ while read upstream; do
 					protocol_filter_str=""
 				fi
 
-				echo "tcpdump filter: host ${upstream} and ${protocol_filter_str}"
+				#echo "tcpdump filter: host ${upstream} and ${protocol_filter_str}"
 
 				timestamp="`date "+%Y-%m-%d_%H_%M_%S"`"
-				echo "starting tcpdump"
+				echo "starting tcpdump ${timestamp}"
 				#start tcpdump and sleep for 5s because apparently it needs to initialize
 				tcpdump -U -i any -w /home/ubuntu/web-performance-youtube/packet_captures/${upstream}_${p}_${video}_${timestamp}.pcap "host ${upstream} and ${protocol_filter_str}" &
 				sleep 5
