@@ -51,37 +51,37 @@ while read upstream; do
 				if [ $p = "udp" ]
 				then
 					resolver="${upstream}"
-					protocol_filter_str = "udp port 53"
+					protocol_filter_str="udp port 53"
 				elif [ $p = "https" ]
 				then
 					resolver="${p}://${https_upstream}"
-					protocol_filter_str = "tcp port 443"
+					protocol_filter_str="tcp port 443"
 				elif [ $p = "quic" ]
 				then
 					#protocol_filter_str = "udp port 784 or udp port 8853 or udp port 853"
 					if [ $qport = "8853" ]
 					then
 						resolver="quic://${upstream}:8853"
-						protocol_filter_str = "udp port 8853"
+						protocol_filter_str="udp port 8853"
 					elif [ $qport = "853" ]
 					then
 						resolver="quic://${upstream}:853"
-						protocol_filter_str = "udp port 853"
+						protocol_filter_str="udp port 853"
 					else
 						resolver="quic://${upstream}:784"
-						protocol_filter_str = "udp port 784"
+						protocol_filter_str="udp port 784"
 					fi
 				elif [ $p = "tls" ]
 				then
-					protocol_filter_str = "tcp port 853"
+					protocol_filter_str="tcp port 853"
 					resolver="${p}://${upstream}"
 				elif [ $p = "tcp" ]
 				then
-					protocol_filter_str = "tcp port 53"
+					protocol_filter_str="tcp port 53"
 					resolver="${p}://${upstream}"
 				else
 					resolver="${p}://${upstream}"
-					protocol_filter_str = ""
+					protocol_filter_str=""
 				fi
 
 				echo "tcpdump filter: host ${upstream} and ${protocol_filter_str}"
