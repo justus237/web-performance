@@ -29,7 +29,7 @@ declare -a protocols=("tls" "https" "quic" "tcp" "udp")
 
 #declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 #4k-capable: ("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
-declare -a videos=("aqz-KE-bpKQ" "lqiN98z6Dak")
+declare -a videos=("aqz-KE-bpKQ")# "lqiN98z6Dak")
 
 while read upstream; do
 	qport=$(echo ${upstream} | cut -d: -f2)
@@ -47,30 +47,52 @@ while read upstream; do
 			for p in "${protocols[@]}"
 			do
 				echo $p
-
+				protocol_filter_str = ""
 				if [ $p = "udp" ]
 				then
 					resolver="${upstream}"
+					protocol_filter_str = "udp port 53"
 				elif [ $p = "https" ]
 				then
 					resolver="${p}://${https_upstream}"
+					protocol_filter_str = "tcp port 443"
 				elif [ $p = "quic" ]
 				then
+					#protocol_filter_str = "udp port 784 or udp port 8853 or udp port 853"
 					if [ $qport = "8853" ]
 					then
 						resolver="quic://${upstream}:8853"
+						protocol_filter_str = "udp port 8853"
 					elif [ $qport = "853" ]
 					then
 						resolver="quic://${upstream}:853"
+						protocol_filter_str = "udp port 853"
 					else
 						resolver="quic://${upstream}:784"
+						protocol_filter_str = "udp port 784"
 					fi
+				elif [ $p = "tls" ]
+				then
+					protocol_filter_str = "tcp port 853"
+					resolver="${p}://${upstream}"
+				fi
+				elif [ $p = "tcp" ]
+				then
+					protocol_filter_str = "tcp port 53"
+					resolver="${p}://${upstream}"
+				fi
 				else
 					resolver="${p}://${upstream}"
 				fi
 
-			
-				sleep 1
+				echo "tcpdump filter: host ${upstream} and ${protocol_filter_str}"
+
+				timestamp="`date "+%Y-%m-%d_%H_%M_%S"`"
+				echo "starting tcpdump"
+				#start tcpdump and sleep for 5s because apparently it needs to initialize
+				tcpdump -U -i any -w /home/ubuntu/web-performance-youtube/packet_captures/${upstream}_${p}_${video}_${timestamp}.pcap "host ${upstream} and ${protocol_filter_str}"&
+				sleep 5
+				#sleep 1
 				echo "starting dnsproxy"
 				./dnsproxy -u ${resolver} -v --insecure --ipv6-disabled -l "127.0.0.2" >& /home/ubuntu/web-performance-youtube/dnsproxy.log &
 				dnsproxyPID=$!
@@ -83,9 +105,11 @@ while read upstream; do
 				python3 youtube_measurement_with_capture.py $p $upstream $dnsproxyPID chrome $vp 1280 720 auto 0 5 $video
 
 				sleep 1
-				echo "killing dnsproxy"
+				echo "killing dnsproxy and tcpdump"
 				kill -SIGTERM $dnsproxyPID
 				rm dnsproxy.log
+				kill -SIGINT $(ps -e | pgrep tcpdump)
+				sleep 5
 				cd /home/ubuntu/dnsproxy
 			done
 		done

@@ -550,7 +550,7 @@ def perform_page_load(page, cache_warming=0):
     uid = uuid.UUID(sha.hexdigest())
 
     # start packet capture
-    start_tcpdump(protocol, server, str(uid), cache_warming)
+    #start_tcpdump(protocol, server, str(uid), cache_warming)
 
     # nerd_stats seems to be ~20 seconds ahead of event_log on my local machine, both log in 1s intervals so the delta should not be that large
     if cache_warming == 1:
@@ -572,7 +572,7 @@ def perform_page_load(page, cache_warming=0):
     #    driver.get_screenshot_as_file('msm-failed-'+protocol+'-'+server+'-'+page+'-'+str(
     #        cache_warming)+'-'+vantage_point+'-'+timestamp.strftime("%y-%m-%d-%H:%M:%S")+'.png')
     driver.quit()
-    kill_tcpdump()
+    #kill_tcpdump()
     
     if protocol == "quic":
         insert_qlogs(str(uid))
