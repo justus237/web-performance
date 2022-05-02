@@ -75,12 +75,10 @@ while read upstream; do
 				then
 					protocol_filter_str = "tcp port 853"
 					resolver="${p}://${upstream}"
-				fi
 				elif [ $p = "tcp" ]
 				then
 					protocol_filter_str = "tcp port 53"
 					resolver="${p}://${upstream}"
-				fi
 				else
 					resolver="${p}://${upstream}"
 				fi
