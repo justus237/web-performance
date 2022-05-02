@@ -47,7 +47,7 @@ while read upstream; do
 			for p in "${protocols[@]}"
 			do
 				echo $p
-				protocol_filter_str = ""
+				
 				if [ $p = "udp" ]
 				then
 					resolver="${upstream}"
@@ -81,6 +81,7 @@ while read upstream; do
 					resolver="${p}://${upstream}"
 				else
 					resolver="${p}://${upstream}"
+					protocol_filter_str = ""
 				fi
 
 				echo "tcpdump filter: host ${upstream} and ${protocol_filter_str}"
