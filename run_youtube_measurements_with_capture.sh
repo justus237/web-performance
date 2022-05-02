@@ -29,7 +29,7 @@ declare -a protocols=("tls" "https" "quic" "tcp" "udp")
 
 #declare -a framesizes=("1280 720" "1920 1080" "2560 1440" "3840 2160")
 #4k-capable: ("aqz-KE-bpKQ" "lqiN98z6Dak" "RJnKaAtBPhA")
-declare -a videos=("aqz-KE-bpKQ")# "lqiN98z6Dak")
+declare -a videos=("aqz-KE-bpKQ")
 
 while read upstream; do
 	qport=$(echo ${upstream} | cut -d: -f2)
